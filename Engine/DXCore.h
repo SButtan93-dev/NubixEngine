@@ -4,6 +4,7 @@
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <string>
+#include <vector>
 #include <wrl/client.h> // Used for ComPtr - a smart pointer for COM objects
 
 // We can include the correct library files here
@@ -83,6 +84,7 @@ protected:
 	unsigned int rtvDescriptorSize;
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvHeap;
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvHeap;
+	std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> gBufferTextures;
 
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[numBackBuffers]; // Pointers into the RTV desc heap
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle;

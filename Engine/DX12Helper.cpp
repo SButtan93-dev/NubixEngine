@@ -177,6 +177,46 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DX12Helper::CreateStaticBuffer(unsigned i
 	return buffer;
 }
 
+Microsoft::WRL::ComPtr<ID3D12Resource> DX12Helper::CreateGBufferTexture(ID3D12Device* device, UINT width, UINT height, DXGI_FORMAT format)
+{
+	Microsoft::WRL::ComPtr<ID3D12Resource> gBufferTexture;
+
+	// Describe the G-buffer texture
+	D3D12_RESOURCE_DESC resourceDesc = {};
+	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	resourceDesc.Alignment = 0;
+	resourceDesc.Width = width;
+	resourceDesc.Height = height;
+	resourceDesc.DepthOrArraySize = 1;
+	resourceDesc.MipLevels = 1;
+	resourceDesc.Format = format;
+	resourceDesc.SampleDesc.Count = 1;
+	resourceDesc.SampleDesc.Quality = 0;
+	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+	// Create the G-buffer texture
+	device->CreateCommittedResource(
+		&heapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&resourceDesc,
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		nullptr,
+		IID_PPV_ARGS(gBufferTexture.GetAddressOf())))
+	{
+		// Optionally, set a debug name for the texture for easier debugging
+		gBufferTexture->SetName(L"GBufferTexture");
+
+		// TODO: Create a render target view (RTV) for the G-buffer texture
+		// Example: Create an RTV handle (replace with your own RTV creation logic)
+		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvHeap->GetCPUDescriptorHandleForHeapStart());
+		device->CreateRenderTargetView(gBufferTexture.Get(), nullptr, rtvHandle);
+	}
+
+	return gBufferTexture;
+
+}
+
 
 
 // --------------------------------------------------------

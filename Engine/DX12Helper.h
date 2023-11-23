@@ -56,6 +56,7 @@ public:
 	// Resource creation
 	D3D12_CPU_DESCRIPTOR_HANDLE LoadTexture(const wchar_t* file, bool generateMips = true);
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateStaticBuffer(unsigned int dataStride, unsigned int dataCount, void* data);
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateGBufferTexture(ID3D12Device* device, UINT width, UINT height, DXGI_FORMAT format);
 	
 	// Resource usage
 	D3D12_GPU_DESCRIPTOR_HANDLE FillNextConstantBufferAndGetGPUDescriptorHandle(

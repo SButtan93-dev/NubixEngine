@@ -320,6 +320,72 @@ HRESULT DXCore::InitDirect3D()
 		}
 	}
 
+	// Create Gbuffers for deferred rendering
+	{
+		const int numGBufferTextures = 3;
+		DXGI_FORMAT gBufferFormat[numGBufferTextures] = { DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT };
+
+		Microsoft::WRL::ComPtr<ID3D12Resource> gBufferTextures[numGBufferTextures];
+		for (int i = 0; i < numGBufferTextures; ++i) {
+
+			Microsoft::WRL::ComPtr<ID3D12Resource> gBufferTexture;
+
+			D3D12_HEAP_PROPERTIES heapProperties = {};
+			heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
+			heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+			heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+			heapProperties.CreationNodeMask = 1;
+			heapProperties.VisibleNodeMask = 1;
+
+			D3D12_RESOURCE_DESC resourceDesc = {};
+			resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+			resourceDesc.Alignment = 0;
+			resourceDesc.Width = windowWidth;
+			resourceDesc.Height = windowHeight;
+			resourceDesc.DepthOrArraySize = 1;
+			resourceDesc.MipLevels = 1;
+			resourceDesc.Format = gBufferFormat[i];
+			resourceDesc.SampleDesc.Count = 1;
+			resourceDesc.SampleDesc.Quality = 0;
+			resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+			resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET; // Assuming it's a render target
+
+			HRESULT hr = device->CreateCommittedResource(
+				&heapProperties,
+				D3D12_HEAP_FLAG_NONE,
+				&resourceDesc,
+				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, // Start in a PS resource state
+				nullptr,
+				IID_PPV_ARGS(gBufferTexture.GetAddressOf()));
+
+			if (FAILED(hr))
+			{
+				// Handle error, e.g., log the error or throw an exception
+				// ...
+			}
+
+			// Create SRV descriptor for the texture
+			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			srvDesc.Format = gBufferFormat[i];
+			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+			srvDesc.Texture2D.MipLevels = 1;
+
+			// Get the CPU handle for the descriptor heap
+			D3D12_CPU_DESCRIPTOR_HANDLE srvHandle(DX12Helper::GetInstance().GetCBVSRVDescriptorHeap()->GetCPUDescriptorHandleForHeapStart());
+
+			// Move the handle to the current descriptor
+			srvHandle.ptr += i * device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+			// Create the SRV in the descriptor heap
+			device->CreateShaderResourceView(gBufferTexture.Get(), &srvDesc, srvHandle);
+
+			// Optionally, you can set a debug name for the texture for easier debugging
+			gBufferTexture->SetName(L"GBufferTexture");
+
+		}
+	}
+
 	// Create depth/stencil buffer
 	{
 		// Create a descriptor heap for DSV
