@@ -322,11 +322,10 @@ HRESULT DXCore::InitDirect3D()
 
 	// Create Gbuffers for deferred rendering
 	{
-		const int numGBufferTextures = 3;
+		const int numGBufferTextures = 4;
 		DXGI_FORMAT gBufferFormat[numGBufferTextures] = { DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT };
 
-		Microsoft::WRL::ComPtr<ID3D12Resource> gBufferTextures[numGBufferTextures];
-		for (int i = 0; i < numGBufferTextures; ++i) {
+		for (int i = 0; i < numGBufferTextures; i++) {
 
 			Microsoft::WRL::ComPtr<ID3D12Resource> gBufferTexture;
 
@@ -358,12 +357,6 @@ HRESULT DXCore::InitDirect3D()
 				nullptr,
 				IID_PPV_ARGS(gBufferTexture.GetAddressOf()));
 
-			if (FAILED(hr))
-			{
-				// Handle error, e.g., log the error or throw an exception
-				// ...
-			}
-
 			// Create SRV descriptor for the texture
 			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -380,8 +373,8 @@ HRESULT DXCore::InitDirect3D()
 			// Create the SRV in the descriptor heap
 			device->CreateShaderResourceView(gBufferTexture.Get(), &srvDesc, srvHandle);
 
-			// Optionally, you can set a debug name for the texture for easier debugging
-			gBufferTexture->SetName(L"GBufferTexture");
+			// Easier debugging
+			gBufferTexture->SetName(L"GBufferTextureSRV");
 
 		}
 	}

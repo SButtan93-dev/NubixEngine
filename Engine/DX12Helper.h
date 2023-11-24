@@ -56,7 +56,7 @@ public:
 	// Resource creation
 	D3D12_CPU_DESCRIPTOR_HANDLE LoadTexture(const wchar_t* file, bool generateMips = true);
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateStaticBuffer(unsigned int dataStride, unsigned int dataCount, void* data);
-	Microsoft::WRL::ComPtr<ID3D12Resource> CreateGBufferTexture(ID3D12Device* device, UINT width, UINT height, DXGI_FORMAT format);
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateGBufferTexture(ID3D12Device* device, UINT width, UINT height, DXGI_FORMAT format, UINT offset);
 	
 	// Resource usage
 	D3D12_GPU_DESCRIPTOR_HANDLE FillNextConstantBufferAndGetGPUDescriptorHandle(
@@ -112,6 +112,10 @@ private:
 	SIZE_T cbvSrvDescriptorHeapIncrementSize;
 	unsigned int cbvDescriptorOffset;
 	unsigned int srvDescriptorOffset;
+
+	// Assuming you have declared the RTV heap
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvHeap;
+	SIZE_T rtvDescriptorSize; // Increment size for RTV descriptor heap
 
 	void CreateConstantBufferUploadHeap();
 	void CreateCBVSRVDescriptorHeap();
