@@ -323,7 +323,7 @@ HRESULT DXCore::InitDirect3D()
 	// Create Gbuffers for deferred rendering
 	{
 		const int numGBufferTextures = 4;
-		DXGI_FORMAT gBufferFormat[numGBufferTextures] = { DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT };
+		DXGI_FORMAT gBufferFormat[numGBufferTextures] = { DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT};
 
 		for (int i = 0; i < numGBufferTextures; i++) {
 

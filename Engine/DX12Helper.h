@@ -68,6 +68,10 @@ public:
 	void CloseExecuteAndResetCommandList();
 	void WaitForGPU();
 
+	// Assuming you have declared the RTV heap
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvHeap;
+	SIZE_T rtvDescriptorSize; // Increment size for RTV descriptor heap
+
 private:
 
 	// Overall device
@@ -113,9 +117,9 @@ private:
 	unsigned int cbvDescriptorOffset;
 	unsigned int srvDescriptorOffset;
 
-	// Assuming you have declared the RTV heap
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvHeap;
-	SIZE_T rtvDescriptorSize; // Increment size for RTV descriptor heap
+	//// Assuming you have declared the RTV heap
+	//Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvHeap;
+	//SIZE_T rtvDescriptorSize; // Increment size for RTV descriptor heap
 
 	void CreateConstantBufferUploadHeap();
 	void CreateCBVSRVDescriptorHeap();

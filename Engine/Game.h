@@ -41,6 +41,11 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState;
 
+	Microsoft::WRL::ComPtr<ID3D12Resource> gBufferAlbedo;
+		Microsoft::WRL::ComPtr<ID3D12Resource> gBufferNormals;
+		Microsoft::WRL::ComPtr<ID3D12Resource> gBufferDepth;
+		Microsoft::WRL::ComPtr<ID3D12Resource> gBufferMetalRough;
+
 	// Scene
 	int lightCount;
 	std::vector<Light> lights;

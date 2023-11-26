@@ -107,6 +107,7 @@ void Game::CreateRootSigAndPipelineState()
 	// Blobs to hold raw shader byte code used in several steps below
 	Microsoft::WRL::ComPtr<ID3DBlob> vertexShaderByteCode;
 	Microsoft::WRL::ComPtr<ID3DBlob> pixelShaderByteCode;
+	Microsoft::WRL::ComPtr<ID3DBlob> gBufferPixelShaderByteCode;
 
 	// Load shaders
 	{
@@ -114,6 +115,8 @@ void Game::CreateRootSigAndPipelineState()
 		// - Essentially just "open the file and plop its contents here"
 		D3DReadFileToBlob(FixPath(L"VertexShader.cso").c_str(), vertexShaderByteCode.GetAddressOf());
 		D3DReadFileToBlob(FixPath(L"PixelShader.cso").c_str(), pixelShaderByteCode.GetAddressOf());
+		// Load G-buffer pixel shader
+		D3DReadFileToBlob(FixPath(L"GBuffer.cso").c_str(), gBufferPixelShaderByteCode.GetAddressOf());
 	}
 
 	// Input layout
@@ -168,6 +171,14 @@ void Game::CreateRootSigAndPipelineState()
 		cbvRangePS.RegisterSpace = 0;
 		cbvRangePS.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
+		// Describe the range of CBVs needed for the G-buffer pixel shader
+		D3D12_DESCRIPTOR_RANGE cbvRangeGBufferPS = {};
+		cbvRangeGBufferPS.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+		cbvRangeGBufferPS.NumDescriptors = 1;
+		cbvRangeGBufferPS.BaseShaderRegister = 1;  // Assuming the G-buffer CBV is registered at b1
+		cbvRangeGBufferPS.RegisterSpace = 0;
+		cbvRangeGBufferPS.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
 		// Create a range of SRV's for textures
 		D3D12_DESCRIPTOR_RANGE srvRange = {};
 		srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -177,7 +188,7 @@ void Game::CreateRootSigAndPipelineState()
 		srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 		// Create the root parameters
-		D3D12_ROOT_PARAMETER rootParams[3] = {};
+		D3D12_ROOT_PARAMETER rootParams[4] = {};
 
 		// CBV table param for vertex shader
 		rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
@@ -196,6 +207,12 @@ void Game::CreateRootSigAndPipelineState()
 		rootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 		rootParams[2].DescriptorTable.NumDescriptorRanges = 1;
 		rootParams[2].DescriptorTable.pDescriptorRanges = &srvRange;
+
+		// CBV table param for G-buffer pixel shader
+		rootParams[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParams[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+		rootParams[3].DescriptorTable.NumDescriptorRanges = 1;
+		rootParams[3].DescriptorTable.pDescriptorRanges = &cbvRangeGBufferPS;
 
 		// Create a single static sampler (available to all pixel shaders at the same slot)
 		// Note: This is in lieu of having materials have their own samplers for this demo
@@ -264,12 +281,17 @@ void Game::CreateRootSigAndPipelineState()
 		psoDesc.PS.pShaderBytecode = pixelShaderByteCode->GetBufferPointer();
 		psoDesc.PS.BytecodeLength = pixelShaderByteCode->GetBufferSize();
 
+
 		// -- Render targets ---
 		psoDesc.NumRenderTargets = 1;
 		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 		psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 		psoDesc.SampleDesc.Count = 1;
 		psoDesc.SampleDesc.Quality = 0;
+
+		// Update the shaders for G-buffer rendering
+		psoDesc.PS.pShaderBytecode = gBufferPixelShaderByteCode->GetBufferPointer();
+		psoDesc.PS.BytecodeLength = gBufferPixelShaderByteCode->GetBufferSize();
 
 		// -- States ---
 		psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
@@ -317,6 +339,12 @@ void Game::CreateBasicGeometry()
 	D3D12_CPU_DESCRIPTOR_HANDLE scratchedNormals = LoadTexture(L"../../Assets/Textures/scratched_normals.png");
 	D3D12_CPU_DESCRIPTOR_HANDLE scratchedRoughness = LoadTexture(L"../../Assets/Textures/scratched_roughness.png");
 	D3D12_CPU_DESCRIPTOR_HANDLE scratchedMetal = LoadTexture(L"../../Assets/Textures/scratched_metal.png");
+
+	// During initialization
+	gBufferAlbedo = DX12Helper::GetInstance().CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
+	gBufferNormals = DX12Helper::GetInstance().CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, 1);
+	gBufferDepth = DX12Helper::GetInstance().CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R32_FLOAT, 2);
+	gBufferMetalRough = DX12Helper::GetInstance().CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8_UNORM, 3);
 
 	// Create materials
 	// Note: Samplers are handled by a single static sampler in the
@@ -608,6 +636,13 @@ void Game::Draw(float deltaTime, float totalTime)
 			// Set the SRV descriptor handle for this material's textures
 			// Note: This assumes that descriptor table 2 is for textures (as per our root sig)
 			commandList->SetGraphicsRootDescriptorTable(2, mat->GetFinalGPUHandleForTextures());
+
+			// Set the G-buffer textures as shader resources
+			commandList->SetGraphicsRootDescriptorTable(3, gBufferAlbedo);
+			//commandList->SetGraphicsRootDescriptorTable(4, DX12Helper::GetInstance().rtvHeap->GetGPUDescriptorHandleForHeapStart());
+			//commandList->SetGraphicsRootDescriptorTable(5, DX12Helper::GetInstance().rtvHeap->GetGPUDescriptorHandleForHeapStart());
+			//commandList->SetGraphicsRootDescriptorTable(6, DX12Helper::GetInstance().rtvHeap->GetGPUDescriptorHandleForHeapStart());
+
 
 			// Grab the mesh and its buffer views
 			std::shared_ptr<Mesh> mesh = e->GetMesh();
