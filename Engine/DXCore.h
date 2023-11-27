@@ -39,6 +39,7 @@ public:
 	// Initialization and game-loop related methods
 	HRESULT InitWindow();
 	HRESULT InitDirect3D();
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateGBufferTexture(ID3D12Device* device, UINT width, UINT height, DXGI_FORMAT format, UINT offset);
 	HRESULT Run();
 	void Quit();
 	virtual void OnResize();
@@ -47,6 +48,7 @@ public:
 	virtual void Init() = 0;
 	virtual void Update(float deltaTime, float totalTime) = 0;
 	virtual void Draw(float deltaTime, float totalTime) = 0;
+
 
 protected:
 	HINSTANCE		hInstance;		// The handle to the application
@@ -72,6 +74,8 @@ protected:
 	static const unsigned int numBackBuffers = 2;
 	unsigned int currentSwapBuffer;
 
+	unsigned int currentGBufferCount = 0;
+
 	// DirectX related objects and variables
 	D3D_FEATURE_LEVEL		dxFeatureLevel;
 	Microsoft::WRL::ComPtr<ID3D12Device>		device;
@@ -86,8 +90,13 @@ protected:
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvHeap;
 	std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> gBufferTextures;
 
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[numBackBuffers]; // Pointers into the RTV desc heap
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[6]; // Pointers into the RTV desc heap
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle;
+
+	std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> srvHandleCPU;
+	std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> srvHandleGPU;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> gBufferTexture[4];
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> backBuffers[numBackBuffers];
 	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilBuffer;

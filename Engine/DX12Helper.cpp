@@ -189,52 +189,52 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DX12Helper::CreateStaticBuffer(unsigned i
 	return buffer;
 }
 
-Microsoft::WRL::ComPtr<ID3D12Resource> DX12Helper::CreateGBufferTexture(ID3D12Device* device, UINT width, UINT height, DXGI_FORMAT format, UINT offset)
-{
-	Microsoft::WRL::ComPtr<ID3D12Resource> gBufferTexture;
-
-	// Describe the G-buffer texture
-	D3D12_RESOURCE_DESC resourceDesc = {};
-	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	resourceDesc.Alignment = 0;
-	resourceDesc.Width = width;
-	resourceDesc.Height = height;
-	resourceDesc.DepthOrArraySize = 1;
-	resourceDesc.MipLevels = 1;
-	resourceDesc.Format = format;
-	resourceDesc.SampleDesc.Count = 1;
-	resourceDesc.SampleDesc.Quality = 0;
-	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-
-	D3D12_HEAP_PROPERTIES heapProperties = {};
-	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT; // Use DEFAULT type for render target textures
-	heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-	heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-	heapProperties.CreationNodeMask = 1;
-	heapProperties.VisibleNodeMask = 1;
-
-	// Create the G-buffer texture
-	if (SUCCEEDED(device->CreateCommittedResource(
-		&heapProperties,
-		D3D12_HEAP_FLAG_NONE,
-		&resourceDesc,
-		D3D12_RESOURCE_STATE_RENDER_TARGET,
-		nullptr,
-		IID_PPV_ARGS(gBufferTexture.GetAddressOf()))))
-	{
-		// Easier debugging
-		gBufferTexture->SetName(L"GBufferTextureRTV");
-
-		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvHeap->GetCPUDescriptorHandleForHeapStart());
-		rtvHandle.ptr += offset * rtvDescriptorSize; // Move the handle to the current descriptor
-
-		device->CreateRenderTargetView(gBufferTexture.Get(), nullptr, rtvHandle);
-
-		return gBufferTexture;
-	}
-
-}
+//Microsoft::WRL::ComPtr<ID3D12Resource> DX12Helper::CreateGBufferTexture(ID3D12Device* device, UINT width, UINT height, DXGI_FORMAT format, UINT offset)
+//{
+//	Microsoft::WRL::ComPtr<ID3D12Resource> gBufferTexture;
+//
+//	// Describe the G-buffer texture
+//	D3D12_RESOURCE_DESC resourceDesc = {};
+//	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+//	resourceDesc.Alignment = 0;
+//	resourceDesc.Width = width;
+//	resourceDesc.Height = height;
+//	resourceDesc.DepthOrArraySize = 1;
+//	resourceDesc.MipLevels = 1;
+//	resourceDesc.Format = format;
+//	resourceDesc.SampleDesc.Count = 1;
+//	resourceDesc.SampleDesc.Quality = 0;
+//	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+//	resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+//
+//	D3D12_HEAP_PROPERTIES heapProperties = {};
+//	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT; // Use DEFAULT type for render target textures
+//	heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+//	heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+//	heapProperties.CreationNodeMask = 1;
+//	heapProperties.VisibleNodeMask = 1;
+//
+//	// Create the G-buffer texture
+//	if (SUCCEEDED(device->CreateCommittedResource(
+//		&heapProperties,
+//		D3D12_HEAP_FLAG_NONE,
+//		&resourceDesc,
+//		D3D12_RESOURCE_STATE_RENDER_TARGET,
+//		nullptr,
+//		IID_PPV_ARGS(gBufferTexture.GetAddressOf()))))
+//	{
+//		// Easier debugging
+//		gBufferTexture->SetName(L"GBufferTextureRTV");
+//
+//		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvHeap->GetCPUDescriptorHandleForHeapStart());
+//		rtvHandle.ptr += offset * rtvDescriptorSize; // Move the handle to the current descriptor
+//
+//		device->CreateRenderTargetView(gBufferTexture.Get(), nullptr, rtvHandle);
+//
+//		return gBufferTexture;
+//	}
+//
+//}
 
 
 

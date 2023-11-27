@@ -341,10 +341,10 @@ void Game::CreateBasicGeometry()
 	D3D12_CPU_DESCRIPTOR_HANDLE scratchedMetal = LoadTexture(L"../../Assets/Textures/scratched_metal.png");
 
 	// During initialization
-	gBufferAlbedo = DX12Helper::GetInstance().CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
-	gBufferNormals = DX12Helper::GetInstance().CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, 1);
-	gBufferDepth = DX12Helper::GetInstance().CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R32_FLOAT, 2);
-	gBufferMetalRough = DX12Helper::GetInstance().CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8_UNORM, 3);
+	gBufferTextures.push_back(CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 2));
+	gBufferTextures.push_back(CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, 3));
+	gBufferTextures.push_back(CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R32_FLOAT, 4));
+	gBufferTextures.push_back(CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8_UNORM, 5));
 
 	// Create materials
 	// Note: Samplers are handled by a single static sampler in the
@@ -509,7 +509,9 @@ void Game::Draw(float deltaTime, float totalTime)
 	DX12Helper& dx12Helper = DX12Helper::GetInstance();
 
 	// Grab the current back buffer for this frame
-	Microsoft::WRL::ComPtr<ID3D12Resource> currentBackBuffer = backBuffers[currentSwapBuffer];
+	//Microsoft::WRL::ComPtr<ID3D12Resource> currentBackBuffer = backBuffers[currentSwapBuffer];
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> currentGBuffer = gBufferTextures[currentGBufferCount];
 
 	// Clearing the render target
 	{
@@ -517,7 +519,7 @@ void Game::Draw(float deltaTime, float totalTime)
 		D3D12_RESOURCE_BARRIER rb = {};
 		rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 		rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		rb.Transition.pResource = currentBackBuffer.Get();
+		rb.Transition.pResource = currentGBuffer.Get();
 		rb.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
 		rb.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 		rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
@@ -528,7 +530,7 @@ void Game::Draw(float deltaTime, float totalTime)
 
 		// Clear the RTV
 		commandList->ClearRenderTargetView(
-			rtvHandles[currentSwapBuffer],
+			rtvHandles[currentGBufferCount],
 			color,
 			0, 0); // No scissor rectangles
 
@@ -550,8 +552,23 @@ void Game::Draw(float deltaTime, float totalTime)
 		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap = dx12Helper.GetCBVSRVDescriptorHeap();
 		commandList->SetDescriptorHeaps(1, descriptorHeap.GetAddressOf());
 
+		//targets[0] = gBufferAlbedo;
+		//targets[1] = gBufferNormals;
+		//targets[2] = gBufferDepth;
+		//targets[3] = gBufferMetalRough;
+		
+
+
 		// Set up other commands for rendering
-		commandList->OMSetRenderTargets(1, &rtvHandles[currentSwapBuffer], true, &dsvHandle);
+		//commandList->OMSetRenderTargets(5, targets[0].GetAddres, true, &dsvHandle);
+		//if (currentGBufferCount >= 2)
+		//{
+			commandList->OMSetRenderTargets(4, rtvHandles, true, &dsvHandle);
+		//}
+		//else
+		//{
+
+		//}
 		commandList->RSSetViewports(1, &viewport);
 		commandList->RSSetScissorRects(1, &scissorRect);
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -612,34 +629,34 @@ void Game::Draw(float deltaTime, float totalTime)
 				commandList->SetGraphicsRootDescriptorTable(0, cbHandleVS);
 			}
 
-			// Pixel shader data and cbuffer setup
-			{
-				PixelShaderExternalData psData = {};
-				psData.uvScale = mat->GetUVScale();
-				psData.uvOffset = mat->GetUVOffset();
-				psData.cameraPosition = camera->GetTransform()->GetPosition();
-				psData.lightCount = lightCount;
-				memcpy(psData.lights, &lights[0], sizeof(Light) * MAX_LIGHTS);
+//			 Pixel shader data and cbuffer setup
+			//{
+			//	PixelShaderExternalData psData = {};
+			//	psData.uvScale = mat->GetUVScale();
+			//	psData.uvOffset = mat->GetUVOffset();
+			//	psData.cameraPosition = camera->GetTransform()->GetPosition();
+			//	psData.lightCount = lightCount;
+			//	memcpy(psData.lights, &lights[0], sizeof(Light) * MAX_LIGHTS);
 
-				// Send this to a chunk of the constant buffer heap
-				// and grab the GPU handle for it so we can set it for this draw
-				D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = dx12Helper.FillNextConstantBufferAndGetGPUDescriptorHandle(
-					(void*)(&psData), sizeof(PixelShaderExternalData));
+			//	// Send this to a chunk of the constant buffer heap
+			//	// and grab the GPU handle for it so we can set it for this draw
+			//	D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = dx12Helper.FillNextConstantBufferAndGetGPUDescriptorHandle(
+			//		(void*)(&psData), sizeof(PixelShaderExternalData));
 
-				// Set this constant buffer handle
-				// Note: This assumes that descriptor table 1 is the
-				//       place to put this particular descriptor.  This
-				//       is based on how we set up our root signature.
-				commandList->SetGraphicsRootDescriptorTable(1, cbHandlePS);
-			}
+			//	// Set this constant buffer handle
+			//	// Note: This assumes that descriptor table 1 is the
+			//	//       place to put this particular descriptor.  This
+			//	//       is based on how we set up our root signature.
+			//	commandList->SetGraphicsRootDescriptorTable(1, cbHandlePS);
+			//}
 
 			// Set the SRV descriptor handle for this material's textures
 			// Note: This assumes that descriptor table 2 is for textures (as per our root sig)
 			commandList->SetGraphicsRootDescriptorTable(2, mat->GetFinalGPUHandleForTextures());
 
 			// Set the G-buffer textures as shader resources
-			commandList->SetGraphicsRootDescriptorTable(3, gBufferAlbedo);
-			//commandList->SetGraphicsRootDescriptorTable(4, DX12Helper::GetInstance().rtvHeap->GetGPUDescriptorHandleForHeapStart());
+			commandList->SetGraphicsRootDescriptorTable(3, srvHandleGPU[0]);
+			//commandList->SetGraphicsRootDescriptorTable(4, srvHandleGPU[1]);
 			//commandList->SetGraphicsRootDescriptorTable(5, DX12Helper::GetInstance().rtvHeap->GetGPUDescriptorHandleForHeapStart());
 			//commandList->SetGraphicsRootDescriptorTable(6, DX12Helper::GetInstance().rtvHeap->GetGPUDescriptorHandleForHeapStart());
 
@@ -665,7 +682,7 @@ void Game::Draw(float deltaTime, float totalTime)
 		D3D12_RESOURCE_BARRIER rb = {};
 		rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 		rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		rb.Transition.pResource = currentBackBuffer.Get();
+		rb.Transition.pResource = currentGBuffer.Get();
 		rb.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 		rb.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 		rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
@@ -687,8 +704,9 @@ void Game::Draw(float deltaTime, float totalTime)
 
 		// Figure out which buffer is next
 		currentSwapBuffer++;
-		if (currentSwapBuffer >= numBackBuffers)
-			currentSwapBuffer = 0;
+		currentGBufferCount++;
+		if (currentGBufferCount >= 4)
+			currentGBufferCount = 0;
 
 	}
 

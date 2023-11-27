@@ -21,3 +21,8 @@ struct PixelShaderExternalData
 	int lightCount;
 	Light lights[MAX_LIGHTS];
 };
+
+struct GBufferPixelShaderExternalData
+{
+	DirectX::XMFLOAT4 color;
+};

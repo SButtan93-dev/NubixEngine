@@ -301,7 +301,7 @@ HRESULT DXCore::InitDirect3D()
 
 		// First create a descriptor heap for RTVs
 		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-		rtvHeapDesc.NumDescriptors = numBackBuffers;
+		rtvHeapDesc.NumDescriptors = numBackBuffers + 4;
 		rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 		device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(rtvHeap.GetAddressOf()));
 
@@ -327,7 +327,7 @@ HRESULT DXCore::InitDirect3D()
 
 		for (int i = 0; i < numGBufferTextures; i++) {
 
-			Microsoft::WRL::ComPtr<ID3D12Resource> gBufferTexture;
+			//Microsoft::WRL::ComPtr<ID3D12Resource> gBufferTexture;
 
 			D3D12_HEAP_PROPERTIES heapProperties = {};
 			heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
@@ -355,7 +355,7 @@ HRESULT DXCore::InitDirect3D()
 				&resourceDesc,
 				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, // Start in a PS resource state
 				nullptr,
-				IID_PPV_ARGS(gBufferTexture.GetAddressOf()));
+				IID_PPV_ARGS(gBufferTexture[i].GetAddressOf()));
 
 			// Create SRV descriptor for the texture
 			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -365,16 +365,21 @@ HRESULT DXCore::InitDirect3D()
 			srvDesc.Texture2D.MipLevels = 1;
 
 			// Get the CPU handle for the descriptor heap
-			D3D12_CPU_DESCRIPTOR_HANDLE srvHandle(DX12Helper::GetInstance().GetCBVSRVDescriptorHeap()->GetCPUDescriptorHandleForHeapStart());
+			srvHandleCPU.push_back((DX12Helper::GetInstance().GetCBVSRVDescriptorHeap()->GetCPUDescriptorHandleForHeapStart()));
 
 			// Move the handle to the current descriptor
-			srvHandle.ptr += i * device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			srvHandleCPU[i].ptr += i * device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+			// Get the GPU handle for the descriptor heap
+			srvHandleGPU.push_back(DX12Helper::GetInstance().GetCBVSRVDescriptorHeap()->GetGPUDescriptorHandleForHeapStart());
+			srvHandleGPU[i].ptr += i * device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
 
 			// Create the SRV in the descriptor heap
-			device->CreateShaderResourceView(gBufferTexture.Get(), &srvDesc, srvHandle);
+			device->CreateShaderResourceView(gBufferTexture[i].Get(), &srvDesc, srvHandleCPU[i]);
 
 			// Easier debugging
-			gBufferTexture->SetName(L"GBufferTextureSRV");
+			gBufferTexture[i]->SetName(L"GBufferTextureSRV");
 
 		}
 	}
@@ -466,6 +471,51 @@ HRESULT DXCore::InitDirect3D()
 	return S_OK;
 }
 
+Microsoft::WRL::ComPtr<ID3D12Resource> DXCore::CreateGBufferTexture(ID3D12Device* device, UINT width, UINT height, DXGI_FORMAT format, UINT offset)
+{
+	Microsoft::WRL::ComPtr<ID3D12Resource> gBufferTexture1;
+
+	// Describe the G-buffer texture
+	D3D12_RESOURCE_DESC resourceDesc = {};
+	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	resourceDesc.Alignment = 0;
+	resourceDesc.Width = width;
+	resourceDesc.Height = height;
+	resourceDesc.DepthOrArraySize = 1;
+	resourceDesc.MipLevels = 1;
+	resourceDesc.Format = format;
+	resourceDesc.SampleDesc.Count = 1;
+	resourceDesc.SampleDesc.Quality = 0;
+	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+	D3D12_HEAP_PROPERTIES heapProperties = {};
+	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT; // Use DEFAULT type for render target textures
+	heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	heapProperties.CreationNodeMask = 1;
+	heapProperties.VisibleNodeMask = 1;
+
+	// Create the G-buffer texture
+	if (SUCCEEDED(device->CreateCommittedResource(
+		&heapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&resourceDesc,
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		nullptr,
+		IID_PPV_ARGS(gBufferTexture1.GetAddressOf()))))
+	{
+		// Easier debugging
+		gBufferTexture1->SetName(L"GBufferTextureRTV");
+
+		rtvHandles[offset] = rtvHeap->GetCPUDescriptorHandleForHeapStart();
+		rtvHandles[offset].ptr += (offset) * rtvDescriptorSize; // Move the handle to the current descriptor
+
+		device->CreateRenderTargetView(gBufferTexture1.Get(), nullptr, rtvHandles[offset]);
+
+		return gBufferTexture1;
+	}
+}
 
 // --------------------------------------------------------
 // When the window is resized, the underlying 
@@ -513,6 +563,7 @@ void DXCore::OnResize()
 
 	// Reset back to the first back buffer
 	currentSwapBuffer = 0;
+	currentGBufferCount = 0;
 
 	// Reset the depth buffer and create it again
 	{
