@@ -283,8 +283,11 @@ void Game::CreateRootSigAndPipelineState()
 
 
 		// -- Render targets ---
-		psoDesc.NumRenderTargets = 1;
+		psoDesc.NumRenderTargets = 4;
 		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		psoDesc.RTVFormats[1] = DXGI_FORMAT_R16G16B16A16_FLOAT;
+		psoDesc.RTVFormats[2] = DXGI_FORMAT_R32_FLOAT;
+		psoDesc.RTVFormats[3] = DXGI_FORMAT_R8G8_UNORM;
 		psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 		psoDesc.SampleDesc.Count = 1;
 		psoDesc.SampleDesc.Quality = 0;
@@ -341,10 +344,10 @@ void Game::CreateBasicGeometry()
 	D3D12_CPU_DESCRIPTOR_HANDLE scratchedMetal = LoadTexture(L"../../Assets/Textures/scratched_metal.png");
 
 	// During initialization
-	gBufferTextures.push_back(CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 2));
-	gBufferTextures.push_back(CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, 3));
-	gBufferTextures.push_back(CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R32_FLOAT, 4));
-	gBufferTextures.push_back(CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8_UNORM, 5));
+	gBufferTextures[0] = (CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 2));
+	gBufferTextures[1] = (CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, 3));
+	gBufferTextures[2] = (CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R32_FLOAT, 4));
+	gBufferTextures[3] = (CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8_UNORM, 5));
 
 	// Create materials
 	// Note: Samplers are handled by a single static sampler in the
@@ -401,6 +404,11 @@ void Game::CreateBasicGeometry()
 
 	entities.push_back(entitySphere2);
 	//entities.push_back(entitySphere2);
+
+	targets[0] = rtvHandles[2];
+	targets[1] = rtvHandles[3];
+	targets[2] = rtvHandles[4];
+	targets[3] = rtvHandles[5];
 }
 
 
@@ -530,7 +538,7 @@ void Game::Draw(float deltaTime, float totalTime)
 
 		// Clear the RTV
 		commandList->ClearRenderTargetView(
-			rtvHandles[currentGBufferCount],
+			targets[currentGBufferCount],
 			color,
 			0, 0); // No scissor rectangles
 
@@ -552,10 +560,10 @@ void Game::Draw(float deltaTime, float totalTime)
 		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap = dx12Helper.GetCBVSRVDescriptorHeap();
 		commandList->SetDescriptorHeaps(1, descriptorHeap.GetAddressOf());
 
-		//targets[0] = gBufferAlbedo;
-		//targets[1] = gBufferNormals;
-		//targets[2] = gBufferDepth;
-		//targets[3] = gBufferMetalRough;
+		//targets[0] = rtvHandles[2];
+		//targets[1] = rtvHandles[3];
+		//targets[2] = rtvHandles[4];
+		//targets[3] = rtvHandles[5];
 		
 
 
@@ -563,7 +571,7 @@ void Game::Draw(float deltaTime, float totalTime)
 		//commandList->OMSetRenderTargets(5, targets[0].GetAddres, true, &dsvHandle);
 		//if (currentGBufferCount >= 2)
 		//{
-			commandList->OMSetRenderTargets(4, rtvHandles, true, &dsvHandle);
+			commandList->OMSetRenderTargets(4, targets, true, &dsvHandle);
 		//}
 		//else
 		//{
@@ -650,12 +658,14 @@ void Game::Draw(float deltaTime, float totalTime)
 			//	commandList->SetGraphicsRootDescriptorTable(1, cbHandlePS);
 			//}
 
+			// Set the G-buffer textures as shader resources
+			commandList->SetGraphicsRootDescriptorTable(3, srvHandleGPU[currentGBufferCount]);
+
 			// Set the SRV descriptor handle for this material's textures
 			// Note: This assumes that descriptor table 2 is for textures (as per our root sig)
 			commandList->SetGraphicsRootDescriptorTable(2, mat->GetFinalGPUHandleForTextures());
 
-			// Set the G-buffer textures as shader resources
-			commandList->SetGraphicsRootDescriptorTable(3, srvHandleGPU[0]);
+
 			//commandList->SetGraphicsRootDescriptorTable(4, srvHandleGPU[1]);
 			//commandList->SetGraphicsRootDescriptorTable(5, DX12Helper::GetInstance().rtvHeap->GetGPUDescriptorHandleForHeapStart());
 			//commandList->SetGraphicsRootDescriptorTable(6, DX12Helper::GetInstance().rtvHeap->GetGPUDescriptorHandleForHeapStart());

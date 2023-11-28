@@ -88,7 +88,7 @@ protected:
 	unsigned int rtvDescriptorSize;
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvHeap;
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvHeap;
-	std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> gBufferTextures;
+	Microsoft::WRL::ComPtr<ID3D12Resource> gBufferTextures[4];
 
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[6]; // Pointers into the RTV desc heap
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle;

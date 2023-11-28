@@ -496,13 +496,21 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DXCore::CreateGBufferTexture(ID3D12Device
 	heapProperties.CreationNodeMask = 1;
 	heapProperties.VisibleNodeMask = 1;
 
+	// Specify the clear value
+	D3D12_CLEAR_VALUE clearValue = {};
+	clearValue.Format = format; // Same format as the resource
+	clearValue.Color[0] = 0.0f; // Red component
+	clearValue.Color[1] = 0.0f; // Green component
+	clearValue.Color[2] = 0.0f; // Blue component
+	clearValue.Color[3] = 1.0f; // Alpha component
+
 	// Create the G-buffer texture
 	if (SUCCEEDED(device->CreateCommittedResource(
 		&heapProperties,
 		D3D12_HEAP_FLAG_NONE,
 		&resourceDesc,
 		D3D12_RESOURCE_STATE_RENDER_TARGET,
-		nullptr,
+		&clearValue,
 		IID_PPV_ARGS(gBufferTexture1.GetAddressOf()))))
 	{
 		// Easier debugging

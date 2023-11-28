@@ -46,6 +46,9 @@ private:
 		Microsoft::WRL::ComPtr<ID3D12Resource> gBufferDepth;
 		Microsoft::WRL::ComPtr<ID3D12Resource> gBufferMetalRough;
 
+		D3D12_CPU_DESCRIPTOR_HANDLE targets[4];
+
+
 	// Scene
 	int lightCount;
 	std::vector<Light> lights;
