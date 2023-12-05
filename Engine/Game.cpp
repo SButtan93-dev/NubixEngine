@@ -106,7 +106,7 @@ void Game::CreateRootSigAndPipelineState()
 {
 	// Blobs to hold raw shader byte code used in several steps below
 	Microsoft::WRL::ComPtr<ID3DBlob> vertexShaderByteCode;
-	Microsoft::WRL::ComPtr<ID3DBlob> pixelShaderByteCode;
+	//Microsoft::WRL::ComPtr<ID3DBlob> pixelShaderByteCode;
 	Microsoft::WRL::ComPtr<ID3DBlob> gBufferPixelShaderByteCode;
 
 	// Load shaders
@@ -114,7 +114,7 @@ void Game::CreateRootSigAndPipelineState()
 		// Read our compiled vertex shader code into a blob
 		// - Essentially just "open the file and plop its contents here"
 		D3DReadFileToBlob(FixPath(L"VertexShader.cso").c_str(), vertexShaderByteCode.GetAddressOf());
-		D3DReadFileToBlob(FixPath(L"PixelShader.cso").c_str(), pixelShaderByteCode.GetAddressOf());
+		//D3DReadFileToBlob(FixPath(L"PixelShader.cso").c_str(), pixelShaderByteCode.GetAddressOf());
 		// Load G-buffer pixel shader
 		D3DReadFileToBlob(FixPath(L"GBuffer.cso").c_str(), gBufferPixelShaderByteCode.GetAddressOf());
 	}
@@ -164,12 +164,12 @@ void Game::CreateRootSigAndPipelineState()
 		cbvRangeVS.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 		// Describe the range of CBVs needed for the pixel shader
-		D3D12_DESCRIPTOR_RANGE cbvRangePS = {};
-		cbvRangePS.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-		cbvRangePS.NumDescriptors = 1;
-		cbvRangePS.BaseShaderRegister = 0;
-		cbvRangePS.RegisterSpace = 0;
-		cbvRangePS.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+		//D3D12_DESCRIPTOR_RANGE cbvRangePS = {};
+		//cbvRangePS.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+		//cbvRangePS.NumDescriptors = 1;
+		//cbvRangePS.BaseShaderRegister = 0;
+		//cbvRangePS.RegisterSpace = 0;
+		//cbvRangePS.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 		// Describe the range of CBVs needed for the G-buffer pixel shader
 		D3D12_DESCRIPTOR_RANGE cbvRangeGBufferPS = {};
@@ -196,11 +196,18 @@ void Game::CreateRootSigAndPipelineState()
 		rootParams[0].DescriptorTable.NumDescriptorRanges = 1;
 		rootParams[0].DescriptorTable.pDescriptorRanges = &cbvRangeVS;
 
-		// CBV table param for pixel shader
+
+		// CBV table param for G-buffer pixel shader
 		rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 		rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 		rootParams[1].DescriptorTable.NumDescriptorRanges = 1;
-		rootParams[1].DescriptorTable.pDescriptorRanges = &cbvRangePS;
+		rootParams[1].DescriptorTable.pDescriptorRanges = &cbvRangeGBufferPS;
+
+		//// CBV table param for pixel shader
+		//rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		//rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+		//rootParams[1].DescriptorTable.NumDescriptorRanges = 1;
+		//rootParams[1].DescriptorTable.pDescriptorRanges = &cbvRangePS;
 
 		// SRV table param
 		rootParams[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
@@ -208,11 +215,7 @@ void Game::CreateRootSigAndPipelineState()
 		rootParams[2].DescriptorTable.NumDescriptorRanges = 1;
 		rootParams[2].DescriptorTable.pDescriptorRanges = &srvRange;
 
-		// CBV table param for G-buffer pixel shader
-		rootParams[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		rootParams[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-		rootParams[3].DescriptorTable.NumDescriptorRanges = 1;
-		rootParams[3].DescriptorTable.pDescriptorRanges = &cbvRangeGBufferPS;
+
 
 		// Create a single static sampler (available to all pixel shaders at the same slot)
 		// Note: This is in lieu of having materials have their own samplers for this demo
@@ -278,16 +281,16 @@ void Game::CreateRootSigAndPipelineState()
 		// -- Shaders (VS/PS) --- 
 		psoDesc.VS.pShaderBytecode = vertexShaderByteCode->GetBufferPointer();
 		psoDesc.VS.BytecodeLength = vertexShaderByteCode->GetBufferSize();
-		psoDesc.PS.pShaderBytecode = pixelShaderByteCode->GetBufferPointer();
-		psoDesc.PS.BytecodeLength = pixelShaderByteCode->GetBufferSize();
+		//psoDesc.PS.pShaderBytecode = pixelShaderByteCode->GetBufferPointer();
+		//psoDesc.PS.BytecodeLength = pixelShaderByteCode->GetBufferSize();
 
 
 		// -- Render targets ---
 		psoDesc.NumRenderTargets = 4;
 		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-		psoDesc.RTVFormats[1] = DXGI_FORMAT_R16G16B16A16_FLOAT;
-		psoDesc.RTVFormats[2] = DXGI_FORMAT_R32_FLOAT;
-		psoDesc.RTVFormats[3] = DXGI_FORMAT_R8G8_UNORM;
+		psoDesc.RTVFormats[1] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		psoDesc.RTVFormats[2] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		psoDesc.RTVFormats[3] = DXGI_FORMAT_R8G8B8A8_UNORM;
 		psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 		psoDesc.SampleDesc.Count = 1;
 		psoDesc.SampleDesc.Quality = 0;
@@ -344,10 +347,10 @@ void Game::CreateBasicGeometry()
 	D3D12_CPU_DESCRIPTOR_HANDLE scratchedMetal = LoadTexture(L"../../Assets/Textures/scratched_metal.png");
 
 	// During initialization
-	gBufferTextures[0] = (CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 2));
-	gBufferTextures[1] = (CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, 3));
-	gBufferTextures[2] = (CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R32_FLOAT, 4));
-	gBufferTextures[3] = (CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8_UNORM, 5));
+	gBufferRTVs[0] = (CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 0));
+	gBufferRTVs[1] = (CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 1));
+	gBufferRTVs[2] = (CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 2));
+	gBufferRTVs[3] = (CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 3));
 
 	// Create materials
 	// Note: Samplers are handled by a single static sampler in the
@@ -405,10 +408,10 @@ void Game::CreateBasicGeometry()
 	entities.push_back(entitySphere2);
 	//entities.push_back(entitySphere2);
 
-	targets[0] = rtvHandles[2];
-	targets[1] = rtvHandles[3];
-	targets[2] = rtvHandles[4];
-	targets[3] = rtvHandles[5];
+	targets[0] = rtvHandles[0];
+	targets[1] = rtvHandles[1];
+	targets[2] = rtvHandles[2];
+	targets[3] = rtvHandles[3];
 }
 
 
@@ -516,32 +519,33 @@ void Game::Draw(float deltaTime, float totalTime)
 	// Grab the helper
 	DX12Helper& dx12Helper = DX12Helper::GetInstance();
 
-	// Grab the current back buffer for this frame
-	//Microsoft::WRL::ComPtr<ID3D12Resource> currentBackBuffer = backBuffers[currentSwapBuffer];
-
-	Microsoft::WRL::ComPtr<ID3D12Resource> currentGBuffer = gBufferTextures[currentGBufferCount];
-
 	// Clearing the render target
 	{
-		// Transition the back buffer from present to render target
-		D3D12_RESOURCE_BARRIER rb = {};
-		rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-		rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		rb.Transition.pResource = currentGBuffer.Get();
-		rb.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-		rb.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-		rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-		commandList->ResourceBarrier(1, &rb);
+		for (int i = 0; i < 4; i++)
+		{
+			// Transition the back buffer from present to render target
+			D3D12_RESOURCE_BARRIER rb = {};
+			rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			rb.Transition.pResource = gBufferRTVs[i].Get();
+			rb.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+			rb.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			commandList->ResourceBarrier(1, &rb);
+		}
+
 
 		// Background color for clearing
 		float color[] = { 0, 0, 0, 1.0f };
 
-		// Clear the RTV
-		commandList->ClearRenderTargetView(
-			targets[currentGBufferCount],
-			color,
-			0, 0); // No scissor rectangles
-
+		for (int i = 0; i < 4; i++)
+		{
+			// Clear the RTV
+			commandList->ClearRenderTargetView(
+				targets[i],
+				color,
+				0, 0); // No scissor rectangles
+		}
 		// Clear the depth buffer, too
 		commandList->ClearDepthStencilView(
 			dsvHandle,
@@ -558,25 +562,12 @@ void Game::Draw(float deltaTime, float totalTime)
 
 		// Set constant buffer
 		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap = dx12Helper.GetCBVSRVDescriptorHeap();
-		commandList->SetDescriptorHeaps(1, descriptorHeap.GetAddressOf());
+		commandList->SetDescriptorHeaps(1, descriptorHeap.GetAddressOf());		
 
-		//targets[0] = rtvHandles[2];
-		//targets[1] = rtvHandles[3];
-		//targets[2] = rtvHandles[4];
-		//targets[3] = rtvHandles[5];
-		
-
-
+		int numTargets = 4;
 		// Set up other commands for rendering
-		//commandList->OMSetRenderTargets(5, targets[0].GetAddres, true, &dsvHandle);
-		//if (currentGBufferCount >= 2)
-		//{
-			commandList->OMSetRenderTargets(4, targets, true, &dsvHandle);
-		//}
-		//else
-		//{
+		commandList->OMSetRenderTargets(numTargets, targets, true, &dsvHandle);
 
-		//}
 		commandList->RSSetViewports(1, &viewport);
 		commandList->RSSetScissorRects(1, &scissorRect);
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -608,9 +599,13 @@ void Game::Draw(float deltaTime, float totalTime)
 			entities[index + 1]->GetTransform()->SetRotation(conv2.x, conv2.z, conv2.y);
 		}
 
+		int count = 0;
+
 		// Loop through the meshes
 		for (auto& e : entities)
 		{
+			if (count > 4)
+				count = 0;
 			// Grab the material for this entity
 			std::shared_ptr<Material> mat = e->GetMaterial();
 
@@ -638,33 +633,36 @@ void Game::Draw(float deltaTime, float totalTime)
 			}
 
 //			 Pixel shader data and cbuffer setup
-			//{
-			//	PixelShaderExternalData psData = {};
-			//	psData.uvScale = mat->GetUVScale();
-			//	psData.uvOffset = mat->GetUVOffset();
-			//	psData.cameraPosition = camera->GetTransform()->GetPosition();
-			//	psData.lightCount = lightCount;
-			//	memcpy(psData.lights, &lights[0], sizeof(Light) * MAX_LIGHTS);
+			{
+				//PixelShaderExternalData psData = {};
+				//psData.uvScale = mat->GetUVScale();
+				//psData.uvOffset = mat->GetUVOffset();
+				//psData.cameraPosition = camera->GetTransform()->GetPosition();
+				//psData.lightCount = lightCount;
+				//memcpy(psData.lights, &lights[0], sizeof(Light) * MAX_LIGHTS);
 
-			//	// Send this to a chunk of the constant buffer heap
-			//	// and grab the GPU handle for it so we can set it for this draw
-			//	D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = dx12Helper.FillNextConstantBufferAndGetGPUDescriptorHandle(
-			//		(void*)(&psData), sizeof(PixelShaderExternalData));
+				//// Send this to a chunk of the constant buffer heap
+				//// and grab the GPU handle for it so we can set it for this draw
+				//D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = dx12Helper.FillNextConstantBufferAndGetGPUDescriptorHandle(
+				//	(void*)(&psData), sizeof(PixelShaderExternalData));
 
-			//	// Set this constant buffer handle
-			//	// Note: This assumes that descriptor table 1 is the
-			//	//       place to put this particular descriptor.  This
-			//	//       is based on how we set up our root signature.
-			//	commandList->SetGraphicsRootDescriptorTable(1, cbHandlePS);
-			//}
+				//// Set this constant buffer handle
+				//// Note: This assumes that descriptor table 1 is the
+				////       place to put this particular descriptor.  This
+				////       is based on how we set up our root signature.
+				//commandList->SetGraphicsRootDescriptorTable(1, cbHandlePS);
+			}
 
-			// Set the G-buffer textures as shader resources
-			commandList->SetGraphicsRootDescriptorTable(3, srvHandleGPU[currentGBufferCount]);
+
 
 			// Set the SRV descriptor handle for this material's textures
 			// Note: This assumes that descriptor table 2 is for textures (as per our root sig)
-			commandList->SetGraphicsRootDescriptorTable(2, mat->GetFinalGPUHandleForTextures());
 
+
+			// Set the G-buffer textures as shader resources
+			commandList->SetGraphicsRootDescriptorTable(1, srvHandleGPU[count]);
+			commandList->SetGraphicsRootDescriptorTable(2, mat->GetFinalGPUHandleForTextures());
+			count++;
 
 			//commandList->SetGraphicsRootDescriptorTable(4, srvHandleGPU[1]);
 			//commandList->SetGraphicsRootDescriptorTable(5, DX12Helper::GetInstance().rtvHeap->GetGPUDescriptorHandleForHeapStart());
@@ -688,15 +686,19 @@ void Game::Draw(float deltaTime, float totalTime)
 
 	// Present
 	{
-		// Transition back to present
-		D3D12_RESOURCE_BARRIER rb = {};
-		rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-		rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		rb.Transition.pResource = currentGBuffer.Get();
-		rb.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-		rb.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-		rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-		commandList->ResourceBarrier(1, &rb);
+		for (int i = 0; i < 4; i++)
+		{
+			// Transition back to present
+			D3D12_RESOURCE_BARRIER rb = {};
+			rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			rb.Transition.pResource =gBufferRTVs[i].Get();
+			rb.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			rb.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+			rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			commandList->ResourceBarrier(1, &rb);
+		}
+
 
 		// Must occur BEFORE present
 		// Note: Resetting the allocator every frame requires us to sync the CPU & GPU,

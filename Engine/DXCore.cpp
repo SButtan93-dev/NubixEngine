@@ -293,32 +293,32 @@ HRESULT DXCore::InitDirect3D()
 	}
 
 	// Create back buffers
-	{
-		// What is the increment size between RTV descriptors in a
-		// descriptor heap?  This differs per GPU so we need to 
-		// get it at applications start up
+	//{
+	//	// What is the increment size between RTV descriptors in a
+	//	// descriptor heap?  This differs per GPU so we need to 
+	//	// get it at applications start up
 		rtvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
 		// First create a descriptor heap for RTVs
 		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-		rtvHeapDesc.NumDescriptors = numBackBuffers + 4;
+		rtvHeapDesc.NumDescriptors = 4;
 		rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 		device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(rtvHeap.GetAddressOf()));
 
-		// Now create the RTV handles for each buffer (buffers were created by the swap chain)
-		for (unsigned int i = 0; i < numBackBuffers; i++)
-		{
-			// Grab this buffer from the swap chain
-			swapChain->GetBuffer(i, IID_PPV_ARGS(backBuffers[i].GetAddressOf()));
+	//	// Now create the RTV handles for each buffer (buffers were created by the swap chain)
+	//	for (unsigned int i = 0; i < numBackBuffers; i++)
+	//	{
+	//		// Grab this buffer from the swap chain
+	//		swapChain->GetBuffer(i, IID_PPV_ARGS(backBuffers[i].GetAddressOf()));
 
-			// Make a handle for it
-			rtvHandles[i] = rtvHeap->GetCPUDescriptorHandleForHeapStart();
-			rtvHandles[i].ptr += rtvDescriptorSize * i;
+	//		// Make a handle for it
+	//		rtvHandles[i] = rtvHeap->GetCPUDescriptorHandleForHeapStart();
+	//		rtvHandles[i].ptr += rtvDescriptorSize * i;
 
-			// Create the render target view
-			device->CreateRenderTargetView(backBuffers[i].Get(), 0, rtvHandles[i]);
-		}
-	}
+	//		// Create the render target view
+	//		device->CreateRenderTargetView(backBuffers[i].Get(), 0, rtvHandles[i]);
+	//	}
+	//}
 
 	// Create Gbuffers for deferred rendering
 	{
@@ -509,7 +509,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DXCore::CreateGBufferTexture(ID3D12Device
 		&heapProperties,
 		D3D12_HEAP_FLAG_NONE,
 		&resourceDesc,
-		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		D3D12_RESOURCE_STATE_PRESENT,
 		&clearValue,
 		IID_PPV_ARGS(gBufferTexture1.GetAddressOf()))))
 	{

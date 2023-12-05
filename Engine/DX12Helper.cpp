@@ -383,6 +383,7 @@ void DX12Helper::WaitForGPU()
 	// Update our ongoing fence value (a unique index for each "stop sign")
 	// and then place that value into the GPU's command queue
 	waitFenceCounter++;
+	int add = 10;
 	commandQueue->Signal(waitFence.Get(), waitFenceCounter);
 
 	// Check to see if the most recently completed fence value
