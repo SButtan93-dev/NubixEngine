@@ -289,7 +289,7 @@ void Game::CreateRootSigAndPipelineState()
 		psoDesc.NumRenderTargets = 4;
 		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 		psoDesc.RTVFormats[1] = DXGI_FORMAT_R8G8B8A8_UNORM;
-		psoDesc.RTVFormats[2] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		psoDesc.RTVFormats[2] = DXGI_FORMAT_R32_FLOAT;
 		psoDesc.RTVFormats[3] = DXGI_FORMAT_R8G8B8A8_UNORM;
 		psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 		psoDesc.SampleDesc.Count = 1;
@@ -349,7 +349,7 @@ void Game::CreateBasicGeometry()
 	// During initialization
 	gBufferRTVs[0] = (CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 0));
 	gBufferRTVs[1] = (CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 1));
-	gBufferRTVs[2] = (CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 2));
+	gBufferRTVs[2] = (CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R32_FLOAT, 2));
 	gBufferRTVs[3] = (CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 3));
 
 	// Create materials
@@ -527,7 +527,7 @@ void Game::Draw(float deltaTime, float totalTime)
 			D3D12_RESOURCE_BARRIER rb = {};
 			rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 			rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-			rb.Transition.pResource = gBufferRTVs[i].Get();
+			rb.Transition.pResource = backGBuffers[i].Get();
 			rb.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
 			rb.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 			rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
@@ -660,7 +660,7 @@ void Game::Draw(float deltaTime, float totalTime)
 
 
 			// Set the G-buffer textures as shader resources
-			commandList->SetGraphicsRootDescriptorTable(1, srvHandleGPU[count]);
+			commandList->SetGraphicsRootDescriptorTable(1, srvHandleGPU[1]);
 			commandList->SetGraphicsRootDescriptorTable(2, mat->GetFinalGPUHandleForTextures());
 			count++;
 
@@ -692,7 +692,7 @@ void Game::Draw(float deltaTime, float totalTime)
 			D3D12_RESOURCE_BARRIER rb = {};
 			rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 			rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-			rb.Transition.pResource =gBufferRTVs[i].Get();
+			rb.Transition.pResource =backGBuffers[i].Get();
 			rb.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 			rb.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 			rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;

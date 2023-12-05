@@ -270,7 +270,7 @@ HRESULT DXCore::InitDirect3D()
 	{
 		// Create a description of how our swap chain should work
 		DXGI_SWAP_CHAIN_DESC swapDesc = {};
-		swapDesc.BufferCount = numBackBuffers;
+		swapDesc.BufferCount = 4; //numBackBuffers;
 		swapDesc.BufferDesc.Width = windowWidth;
 		swapDesc.BufferDesc.Height = windowHeight;
 		swapDesc.BufferDesc.RefreshRate.Numerator = 60;
@@ -323,7 +323,7 @@ HRESULT DXCore::InitDirect3D()
 	// Create Gbuffers for deferred rendering
 	{
 		const int numGBufferTextures = 4;
-		DXGI_FORMAT gBufferFormat[numGBufferTextures] = { DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT};
+		DXGI_FORMAT gBufferFormat[numGBufferTextures] = { DXGI_FORMAT_R8G8B8A8_UNORM,  DXGI_FORMAT_R8G8B8A8_UNORM,  DXGI_FORMAT_R8G8B8A8_UNORM,  DXGI_FORMAT_R8G8B8A8_UNORM };
 
 		for (int i = 0; i < numGBufferTextures; i++) {
 
@@ -473,7 +473,7 @@ HRESULT DXCore::InitDirect3D()
 
 Microsoft::WRL::ComPtr<ID3D12Resource> DXCore::CreateGBufferTexture(ID3D12Device* device, UINT width, UINT height, DXGI_FORMAT format, UINT offset)
 {
-	Microsoft::WRL::ComPtr<ID3D12Resource> gBufferTexture1;
+	//Microsoft::WRL::ComPtr<ID3D12Resource> gBufferTexture1;
 
 	// Describe the G-buffer texture
 	D3D12_RESOURCE_DESC resourceDesc = {};
@@ -504,6 +504,11 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DXCore::CreateGBufferTexture(ID3D12Device
 	clearValue.Color[2] = 0.0f; // Blue component
 	clearValue.Color[3] = 1.0f; // Alpha component
 
+	backGBuffers[offset];
+
+	//		// Grab this buffer from the swap chain
+	swapChain->GetBuffer(offset, IID_PPV_ARGS(backGBuffers[offset].GetAddressOf()));
+
 	// Create the G-buffer texture
 	if (SUCCEEDED(device->CreateCommittedResource(
 		&heapProperties,
@@ -511,17 +516,17 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DXCore::CreateGBufferTexture(ID3D12Device
 		&resourceDesc,
 		D3D12_RESOURCE_STATE_PRESENT,
 		&clearValue,
-		IID_PPV_ARGS(gBufferTexture1.GetAddressOf()))))
+		IID_PPV_ARGS(backGBuffers[offset].GetAddressOf()))))
 	{
 		// Easier debugging
-		gBufferTexture1->SetName(L"GBufferTextureRTV");
+		backGBuffers[offset]->SetName(L"GBufferTextureRTV");
 
 		rtvHandles[offset] = rtvHeap->GetCPUDescriptorHandleForHeapStart();
 		rtvHandles[offset].ptr += (offset) * rtvDescriptorSize; // Move the handle to the current descriptor
 
-		device->CreateRenderTargetView(gBufferTexture1.Get(), nullptr, rtvHandles[offset]);
+		device->CreateRenderTargetView(backGBuffers[offset].Get(), nullptr, rtvHandles[offset]);
 
-		return gBufferTexture1;
+		return backGBuffers[offset];
 	}
 }
 

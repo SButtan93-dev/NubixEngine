@@ -99,6 +99,7 @@ protected:
 	Microsoft::WRL::ComPtr<ID3D12Resource> gBufferTexture[4];
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> backBuffers[numBackBuffers];
+	Microsoft::WRL::ComPtr<ID3D12Resource> backGBuffers[4];
 	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilBuffer;
 
 	D3D12_VIEWPORT			viewport;

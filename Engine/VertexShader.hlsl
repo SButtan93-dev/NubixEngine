@@ -38,8 +38,6 @@ VertexToPixel main(VertexShaderInput input)
 	// Calc screen position
 	matrix wvp = mul(projection, mul(view, world));
 	output.screenPosition = mul(wvp, float4(input.localPosition, 1.0f));
-	
-    output.screenPosition.z /= output.screenPosition.w;
 
 	// Make sure the lighting vectors are in world space
 	output.normal = normalize(mul((float3x3)worldInverseTranspose, input.normal));
