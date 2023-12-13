@@ -105,18 +105,28 @@ void Game::Init()
 void Game::CreateRootSigAndPipelineState()
 {
 	// Blobs to hold raw shader byte code used in several steps below
-	Microsoft::WRL::ComPtr<ID3DBlob> vertexShaderByteCode;
+	Microsoft::WRL::ComPtr<ID3DBlob> gBufferVertexShaderByteCode;
 	//Microsoft::WRL::ComPtr<ID3DBlob> pixelShaderByteCode;
 	Microsoft::WRL::ComPtr<ID3DBlob> gBufferPixelShaderByteCode;
+
+
+	// Blobs to hold raw shader byte code used in several steps below
+	Microsoft::WRL::ComPtr<ID3DBlob> lightingVertexShaderByteCode;
+	//Microsoft::WRL::ComPtr<ID3DBlob> pixelShaderByteCode;
+	Microsoft::WRL::ComPtr<ID3DBlob> lightingPixelShaderByteCode;
 
 	// Load shaders
 	{
 		// Read our compiled vertex shader code into a blob
 		// - Essentially just "open the file and plop its contents here"
-		D3DReadFileToBlob(FixPath(L"VertexShader.cso").c_str(), vertexShaderByteCode.GetAddressOf());
-		//D3DReadFileToBlob(FixPath(L"PixelShader.cso").c_str(), pixelShaderByteCode.GetAddressOf());
+		D3DReadFileToBlob(FixPath(L"VertexShader.cso").c_str(), gBufferVertexShaderByteCode.GetAddressOf());
+
 		// Load G-buffer pixel shader
 		D3DReadFileToBlob(FixPath(L"GBuffer.cso").c_str(), gBufferPixelShaderByteCode.GetAddressOf());
+
+		// Deferred Lighting
+		D3DReadFileToBlob(FixPath(L"DeferredDirectionalLightVS.cso").c_str(), lightingVertexShaderByteCode.GetAddressOf());
+		D3DReadFileToBlob(FixPath(L"DeferredDirectionalLightPS.cso").c_str(), lightingPixelShaderByteCode.GetAddressOf());
 	}
 
 	// Input layout
@@ -153,7 +163,7 @@ void Game::CreateRootSigAndPipelineState()
 		inputElements[3].SemanticIndex = 0;							// This is the 0th tangent (there could be more)
 	}
 
-	// Root Signature
+	// Root Signature for GBuffer
 	{
 		// Describe the range of CBVs needed for the vertex shader
 		D3D12_DESCRIPTOR_RANGE cbvRangeVS = {};
@@ -162,14 +172,6 @@ void Game::CreateRootSigAndPipelineState()
 		cbvRangeVS.BaseShaderRegister = 0;
 		cbvRangeVS.RegisterSpace = 0;
 		cbvRangeVS.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-		// Describe the range of CBVs needed for the pixel shader
-		//D3D12_DESCRIPTOR_RANGE cbvRangePS = {};
-		//cbvRangePS.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-		//cbvRangePS.NumDescriptors = 1;
-		//cbvRangePS.BaseShaderRegister = 0;
-		//cbvRangePS.RegisterSpace = 0;
-		//cbvRangePS.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 		// Describe the range of CBVs needed for the G-buffer pixel shader
 		D3D12_DESCRIPTOR_RANGE cbvRangeGBufferPS = {};
@@ -188,7 +190,7 @@ void Game::CreateRootSigAndPipelineState()
 		srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 		// Create the root parameters
-		D3D12_ROOT_PARAMETER rootParams[4] = {};
+		D3D12_ROOT_PARAMETER rootParams[3] = {};
 
 		// CBV table param for vertex shader
 		rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
@@ -202,12 +204,6 @@ void Game::CreateRootSigAndPipelineState()
 		rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 		rootParams[1].DescriptorTable.NumDescriptorRanges = 1;
 		rootParams[1].DescriptorTable.pDescriptorRanges = &cbvRangeGBufferPS;
-
-		//// CBV table param for pixel shader
-		//rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		//rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-		//rootParams[1].DescriptorTable.NumDescriptorRanges = 1;
-		//rootParams[1].DescriptorTable.pDescriptorRanges = &cbvRangePS;
 
 		// SRV table param
 		rootParams[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
@@ -259,10 +255,91 @@ void Game::CreateRootSigAndPipelineState()
 			0,
 			serializedRootSig->GetBufferPointer(),
 			serializedRootSig->GetBufferSize(),
-			IID_PPV_ARGS(rootSignature.GetAddressOf()));
+			IID_PPV_ARGS(rootSignatureGBuffer.GetAddressOf()));
 	}
 
-	// Pipeline state
+	// Root Signature for Lighting Pass
+	{
+		// Describe the range of CBVs needed for the lighting shader
+		// Assuming perFrame data is at b0 and perLight data is at b1
+		D3D12_DESCRIPTOR_RANGE cbvRanges[2] = {};
+		cbvRanges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+		cbvRanges[0].NumDescriptors = 1; // One for perFrame
+		cbvRanges[0].BaseShaderRegister = 0; // b0
+		cbvRanges[0].RegisterSpace = 0;
+		cbvRanges[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+		cbvRanges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+		cbvRanges[1].NumDescriptors = 1; // One for perLight
+		cbvRanges[1].BaseShaderRegister = 1; // b1
+		cbvRanges[1].RegisterSpace = 0;
+		cbvRanges[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+		// Describe the range of SRVs for the GBuffer textures
+		D3D12_DESCRIPTOR_RANGE srvRange = {};
+		srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+		srvRange.NumDescriptors = 4; // Assuming 4 GBuffer textures
+		srvRange.BaseShaderRegister = 0; // t0, t1, t2, t3
+		srvRange.RegisterSpace = 0;
+		srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+		// Create the root parameters
+		D3D12_ROOT_PARAMETER rootParams[3] = {};
+
+		// CBV table param for perFrame data
+		rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		rootParams[0].DescriptorTable.NumDescriptorRanges = 1;
+		rootParams[0].DescriptorTable.pDescriptorRanges = &cbvRanges[0];
+
+		// CBV table param for perLight data
+		rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		rootParams[1].DescriptorTable.NumDescriptorRanges = 1;
+		rootParams[1].DescriptorTable.pDescriptorRanges = &cbvRanges[1];
+
+		// SRV table param for GBuffer textures
+		rootParams[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+		rootParams[2].DescriptorTable.NumDescriptorRanges = 1;
+		rootParams[2].DescriptorTable.pDescriptorRanges = &srvRange;
+
+		// Describe and serialize the root signature
+		D3D12_ROOT_SIGNATURE_DESC rootSig = {};
+		rootSig.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+		rootSig.NumParameters = ARRAYSIZE(rootParams);
+		rootSig.pParameters = rootParams;
+		rootSig.NumStaticSamplers = 0;
+		rootSig.pStaticSamplers = nullptr;
+
+		// Serialization and creation of the root signature
+		ID3DBlob* serializedRootSig = nullptr;
+		ID3DBlob* errors = nullptr;
+		D3D12SerializeRootSignature(
+			&rootSig,
+			D3D_ROOT_SIGNATURE_VERSION_1,
+			&serializedRootSig,
+			&errors);
+
+		// Check for errors during serialization
+		if (errors != nullptr)
+		{
+			OutputDebugString((wchar_t*)errors->GetBufferPointer());
+		}
+
+		// Actually create the root sig
+		device->CreateRootSignature(
+			0,
+			serializedRootSig->GetBufferPointer(),
+			serializedRootSig->GetBufferSize(),
+			IID_PPV_ARGS(rootSignatureLighting.GetAddressOf()));
+
+		// Release resources if necessary
+		if (serializedRootSig) serializedRootSig->Release();
+		if (errors) errors->Release();
+	}
+
+	// Pipeline state for GBuffer Pass
 	{
 		// Describe the pipeline state
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
@@ -276,11 +353,11 @@ void Game::CreateRootSigAndPipelineState()
 		// See: https://docs.microsoft.com/en-us/windows/desktop/direct3d12/managing-graphics-pipeline-state-in-direct3d-12
 
 		// Root sig
-		psoDesc.pRootSignature = rootSignature.Get();
+		psoDesc.pRootSignature = rootSignatureGBuffer.Get();
 
 		// -- Shaders (VS/PS) --- 
-		psoDesc.VS.pShaderBytecode = vertexShaderByteCode->GetBufferPointer();
-		psoDesc.VS.BytecodeLength = vertexShaderByteCode->GetBufferSize();
+		psoDesc.VS.pShaderBytecode = gBufferVertexShaderByteCode->GetBufferPointer();
+		psoDesc.VS.BytecodeLength = gBufferVertexShaderByteCode->GetBufferSize();
 		//psoDesc.PS.pShaderBytecode = pixelShaderByteCode->GetBufferPointer();
 		//psoDesc.PS.BytecodeLength = pixelShaderByteCode->GetBufferSize();
 
@@ -317,7 +394,57 @@ void Game::CreateRootSigAndPipelineState()
 		psoDesc.SampleMask = 0xffffffff;
 
 		// Create the pipe state object
-		device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(pipelineState.GetAddressOf()));
+		device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(pipelineStateGBuffer.GetAddressOf()));
+	}
+
+	// Pipeline state for Lighting Pass
+	{
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDescLighting = {};
+
+		// No input layout required if vertices are generated in the shader
+		psoDescLighting.InputLayout = { nullptr, 0 };
+		psoDescLighting.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+
+		// Root signature for the lighting pass
+		psoDescLighting.pRootSignature = rootSignatureLighting.Get();
+
+		// Shaders specific to the lighting pass
+		psoDescLighting.VS.pShaderBytecode = lightingVertexShaderByteCode->GetBufferPointer();
+		psoDescLighting.VS.BytecodeLength = lightingVertexShaderByteCode->GetBufferSize();
+
+		psoDescLighting.PS.pShaderBytecode = lightingPixelShaderByteCode->GetBufferPointer();
+		psoDescLighting.PS.BytecodeLength = lightingPixelShaderByteCode->GetBufferSize();
+
+		// Set up render target formats for the lighting pass
+		psoDescLighting.NumRenderTargets = 1; // Usually one output in lighting pass
+		psoDescLighting.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM; // Adjust as necessary
+		psoDescLighting.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+		psoDescLighting.SampleDesc.Count = 1;   // No multisampling, just one sample per pixel
+		psoDescLighting.SampleDesc.Quality = 0; // Default quality level
+
+		psoDescLighting.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+		psoDescLighting.RasterizerState.CullMode = D3D12_CULL_MODE_BACK; // or use D3D12_CULL_MODE_NONE if culling is not desired
+		psoDescLighting.RasterizerState.DepthClipEnable = TRUE; // typically enabled
+
+		// Depth stencil state (read-only depth)
+		psoDescLighting.DepthStencilState.DepthEnable = false;
+		psoDescLighting.DSVFormat = DXGI_FORMAT_UNKNOWN;
+
+		// Additive blending for lighting calculations
+		psoDescLighting.BlendState.RenderTarget[0].BlendEnable = TRUE;
+		psoDescLighting.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
+		psoDescLighting.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+		psoDescLighting.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+		psoDescLighting.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+		psoDescLighting.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ONE;
+		psoDescLighting.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+		psoDescLighting.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+		psoDescLighting.SampleMask = 0xffffffff;
+
+		// Create the pipeline state object for the lighting pass
+		device->CreateGraphicsPipelineState(&psoDescLighting, IID_PPV_ARGS(pipelineStateLighting.GetAddressOf()));
 	}
 }
 
@@ -347,29 +474,36 @@ void Game::CreateBasicGeometry()
 	D3D12_CPU_DESCRIPTOR_HANDLE scratchedMetal = LoadTexture(L"../../Assets/Textures/scratched_metal.png");
 
 	// During initialization
-	gBufferRTVs[0] = (CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 0));
-	gBufferRTVs[1] = (CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 1));
-	gBufferRTVs[2] = (CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R32_FLOAT, 2));
-	gBufferRTVs[3] = (CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 3));
+	gBufferRTVs[0] = CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
+	gBufferRTVs[1] = CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 1);
+	gBufferRTVs[2] = CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R32_FLOAT, 2);
+	gBufferRTVs[3] = CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 3);
+
+	gBufferSRVs[0] = DX12Helper::GetInstance().CreateGBufferSRV(gBufferRTVs[0], DXGI_FORMAT_R8G8B8A8_UNORM);
+	gBufferSRVs[1] = DX12Helper::GetInstance().CreateGBufferSRV(gBufferRTVs[1], DXGI_FORMAT_R8G8B8A8_UNORM); 
+	gBufferSRVs[2] = DX12Helper::GetInstance().CreateGBufferSRV(gBufferRTVs[2], DXGI_FORMAT_R32_FLOAT);  
+	gBufferSRVs[3] = DX12Helper::GetInstance().CreateGBufferSRV(gBufferRTVs[3], DXGI_FORMAT_R8G8B8A8_UNORM);  
+
+	lightBufferRTV = CreateLightingTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 4);
 
 	// Create materials
 	// Note: Samplers are handled by a single static sampler in the
 	// root signature for this demo, rather than per-material
-	std::shared_ptr<Material> cobbleMat = std::make_shared<Material>(pipelineState, XMFLOAT3(1, 1, 1));
+	std::shared_ptr<Material> cobbleMat = std::make_shared<Material>(pipelineStateGBuffer, XMFLOAT3(1, 1, 1));
 	cobbleMat->AddTexture(cobblestoneAlbedo, 0);
 	cobbleMat->AddTexture(cobblestoneNormals, 1);
 	cobbleMat->AddTexture(cobblestoneRoughness, 2);
 	cobbleMat->AddTexture(cobblestoneMetal, 3);
 	cobbleMat->FinalizeTextures();
 
-	std::shared_ptr<Material> bronzeMat = std::make_shared<Material>(pipelineState, XMFLOAT3(1, 1, 1));
+	std::shared_ptr<Material> bronzeMat = std::make_shared<Material>(pipelineStateGBuffer, XMFLOAT3(1, 1, 1));
 	bronzeMat->AddTexture(bronzeAlbedo, 0);
 	bronzeMat->AddTexture(bronzeNormals, 1);
 	bronzeMat->AddTexture(bronzeRoughness, 2);
 	bronzeMat->AddTexture(bronzeMetal, 3);
 	bronzeMat->FinalizeTextures();
 
-	std::shared_ptr<Material> scratchedMat = std::make_shared<Material>(pipelineState, XMFLOAT3(1, 1, 1));
+	std::shared_ptr<Material> scratchedMat = std::make_shared<Material>(pipelineStateGBuffer, XMFLOAT3(1, 1, 1));
 	scratchedMat->AddTexture(scratchedAlbedo, 0);
 	scratchedMat->AddTexture(scratchedNormals, 1);
 	scratchedMat->AddTexture(scratchedRoughness, 2);
@@ -412,6 +546,8 @@ void Game::CreateBasicGeometry()
 	targets[1] = rtvHandles[1];
 	targets[2] = rtvHandles[2];
 	targets[3] = rtvHandles[3];
+
+	lightTarget = rtvHandles[4];
 }
 
 
@@ -425,19 +561,19 @@ void Game::GenerateLights()
 	dir1.Type = LIGHT_TYPE_DIRECTIONAL;
 	dir1.Direction = XMFLOAT3(1, -1, 1);
 	dir1.Color = XMFLOAT3(0.8f, 0.8f, 0.8f);
-	dir1.Intensity = 1.0f;
+	dir1.Intensity = 3.0f;
 
 	Light dir2 = {};
 	dir2.Type = LIGHT_TYPE_DIRECTIONAL;
 	dir2.Direction = XMFLOAT3(-1, -0.25f, 0);
 	dir2.Color = XMFLOAT3(0.2f, 0.2f, 0.2f);
-	dir2.Intensity = 1.0f;
+	dir2.Intensity = 3.0f;
 
 	Light dir3 = {};
 	dir3.Type = LIGHT_TYPE_DIRECTIONAL;
 	dir3.Direction = XMFLOAT3(0, -1, 1);
 	dir3.Color = XMFLOAT3(0.2f, 0.2f, 0.2f);
-	dir3.Intensity = 1.0f;
+	dir3.Intensity = 3.0f;
 
 	// Add light to the list
 	lights.push_back(dir1);
@@ -523,12 +659,11 @@ void Game::Draw(float deltaTime, float totalTime)
 	{
 		for (int i = 0; i < 4; i++)
 		{
-			// Transition the back buffer from present to render target
 			D3D12_RESOURCE_BARRIER rb = {};
 			rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 			rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
 			rb.Transition.pResource = backGBuffers[i].Get();
-			rb.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+			rb.Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 			rb.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 			rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 			commandList->ResourceBarrier(1, &rb);
@@ -546,6 +681,9 @@ void Game::Draw(float deltaTime, float totalTime)
 				color,
 				0, 0); // No scissor rectangles
 		}
+
+
+
 		// Clear the depth buffer, too
 		commandList->ClearDepthStencilView(
 			dsvHandle,
@@ -558,7 +696,7 @@ void Game::Draw(float deltaTime, float totalTime)
 	// Rendering here!
 	{
 		// Root sig (must happen before root descriptor table)
-		commandList->SetGraphicsRootSignature(rootSignature.Get());
+		commandList->SetGraphicsRootSignature(rootSignatureGBuffer.Get());
 
 		// Set constant buffer
 		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap = dx12Helper.GetCBVSRVDescriptorHeap();
@@ -576,11 +714,10 @@ void Game::Draw(float deltaTime, float totalTime)
 
 		const int limit = 2;
 
+		// + 1 is for spheres
 		for (int index = 0; index < limit; index++)
 		{
 			physx::PxTransform dynamicColliderPos = physics->GetSphereColliderPosition(index);
-
-			//DirectX::XMFLOAT3  spherePos = entities[index + 1]->GetTransform()->GetPosition();
 
 			physx::PxTransform entityPos = physx::PxTransform(entities[index + 1]->GetTransform()->GetPosition().x,
 														entities[index+1]->GetTransform()->GetPosition().y, 
@@ -593,7 +730,6 @@ void Game::Draw(float deltaTime, float totalTime)
 															entities[index + 1]->GetTransform()->GetPosition().y + relativeTransform.y,
 															entities[index + 1]->GetTransform()->GetPosition().z + relativeTransform.z);
 
-
 			DirectX::XMFLOAT3 conv2 = physics->GetSphereColliderRotation(index);
 
 			entities[index + 1]->GetTransform()->SetRotation(conv2.x, conv2.z, conv2.y);
@@ -601,105 +737,25 @@ void Game::Draw(float deltaTime, float totalTime)
 
 		int count = 0;
 
-		// Loop through the meshes
-		for (auto& e : entities)
+		RenderGBuffer();
+	
+		RenderLighting();
+
+		for (int i = 0; i < 4; i++)
 		{
-			if (count > 4)
-				count = 0;
-			// Grab the material for this entity
-			std::shared_ptr<Material> mat = e->GetMaterial();
-
-			// Set the pipeline state for this material
-			commandList->SetPipelineState(mat->GetPipelineState().Get());
-
-			// Set up the vertex shader data we intend to use for drawing this entity
-			{
-				VertexShaderExternalData vsData = {};
-				vsData.world = e->GetTransform()->GetWorldMatrix();
-				vsData.worldInverseTranspose = e->GetTransform()->GetWorldInverseTransposeMatrix();
-				vsData.view = camera->GetView();
-				vsData.projection = camera->GetProjection();
-
-				// Send this to a chunk of the constant buffer heap
-				// and grab the GPU handle for it so we can set it for this draw
-				D3D12_GPU_DESCRIPTOR_HANDLE cbHandleVS = dx12Helper.FillNextConstantBufferAndGetGPUDescriptorHandle(
-					(void*)(&vsData), sizeof(VertexShaderExternalData));
-
-				// Set this constant buffer handle
-				// Note: This assumes that descriptor table 0 is the
-				//       place to put this particular descriptor.  This
-				//       is based on how we set up our root signature.
-				commandList->SetGraphicsRootDescriptorTable(0, cbHandleVS);
-			}
-
-//			 Pixel shader data and cbuffer setup
-			{
-				//PixelShaderExternalData psData = {};
-				//psData.uvScale = mat->GetUVScale();
-				//psData.uvOffset = mat->GetUVOffset();
-				//psData.cameraPosition = camera->GetTransform()->GetPosition();
-				//psData.lightCount = lightCount;
-				//memcpy(psData.lights, &lights[0], sizeof(Light) * MAX_LIGHTS);
-
-				//// Send this to a chunk of the constant buffer heap
-				//// and grab the GPU handle for it so we can set it for this draw
-				//D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = dx12Helper.FillNextConstantBufferAndGetGPUDescriptorHandle(
-				//	(void*)(&psData), sizeof(PixelShaderExternalData));
-
-				//// Set this constant buffer handle
-				//// Note: This assumes that descriptor table 1 is the
-				////       place to put this particular descriptor.  This
-				////       is based on how we set up our root signature.
-				//commandList->SetGraphicsRootDescriptorTable(1, cbHandlePS);
-			}
-
-
-
-			// Set the SRV descriptor handle for this material's textures
-			// Note: This assumes that descriptor table 2 is for textures (as per our root sig)
-
-
-			// Set the G-buffer textures as shader resources
-			commandList->SetGraphicsRootDescriptorTable(1, srvHandleGPU[1]);
-			commandList->SetGraphicsRootDescriptorTable(2, mat->GetFinalGPUHandleForTextures());
-			count++;
-
-			//commandList->SetGraphicsRootDescriptorTable(4, srvHandleGPU[1]);
-			//commandList->SetGraphicsRootDescriptorTable(5, DX12Helper::GetInstance().rtvHeap->GetGPUDescriptorHandleForHeapStart());
-			//commandList->SetGraphicsRootDescriptorTable(6, DX12Helper::GetInstance().rtvHeap->GetGPUDescriptorHandleForHeapStart());
-
-
-			// Grab the mesh and its buffer views
-			std::shared_ptr<Mesh> mesh = e->GetMesh();
-			D3D12_VERTEX_BUFFER_VIEW vbv = mesh->GetVB();
-			D3D12_INDEX_BUFFER_VIEW  ibv = mesh->GetIB();
-
-			// Set the geometry
-			commandList->IASetVertexBuffers(0, 1, &vbv);
-			commandList->IASetIndexBuffer(&ibv);
-
-			// Draw
-			commandList->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
-		
-		}		
+			D3D12_RESOURCE_BARRIER rb = {};
+			rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			rb.Transition.pResource = backGBuffers[i].Get();
+			rb.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			rb.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+			rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			commandList->ResourceBarrier(1, &rb);
+		}
 	}
 
 	// Present
 	{
-		for (int i = 0; i < 4; i++)
-		{
-			// Transition back to present
-			D3D12_RESOURCE_BARRIER rb = {};
-			rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-			rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-			rb.Transition.pResource =backGBuffers[i].Get();
-			rb.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-			rb.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-			rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-			commandList->ResourceBarrier(1, &rb);
-		}
-
-
 		// Must occur BEFORE present
 		// Note: Resetting the allocator every frame requires us to sync the CPU & GPU,
 		//       since we cannot reset the allocator if its command list is executing.
@@ -721,5 +777,139 @@ void Game::Draw(float deltaTime, float totalTime)
 			currentGBufferCount = 0;
 
 	}
-
 }
+
+void Game::RenderGBuffer()
+{
+	// Loop through the meshes
+	{
+		for (auto& e : entities)
+		{
+			// Grab the material for this entity
+			std::shared_ptr<Material> mat = e->GetMaterial();
+
+			// Set the pipeline state for this material
+			commandList->SetPipelineState(mat->GetPipelineState().Get());
+
+			// Set up the vertex shader data we intend to use for drawing this entity
+			{
+				VertexShaderExternalData vsData = {};
+				vsData.world = e->GetTransform()->GetWorldMatrix();
+				vsData.worldInverseTranspose = e->GetTransform()->GetWorldInverseTransposeMatrix();
+				vsData.view = camera->GetView();
+				vsData.projection = camera->GetProjection();
+
+				// Send this to a chunk of the constant buffer heap
+				// and grab the GPU handle for it so we can set it for this draw
+				D3D12_GPU_DESCRIPTOR_HANDLE cbHandleVS = DX12Helper::GetInstance().FillNextConstantBufferAndGetGPUDescriptorHandle(
+					(void*)(&vsData), sizeof(VertexShaderExternalData));
+
+				// Set this constant buffer handle
+				// Note: This assumes that descriptor table 0 is the
+				//       place to put this particular descriptor.  This
+				//       is based on how we set up our root signature.
+				commandList->SetGraphicsRootDescriptorTable(0, cbHandleVS);
+			}
+
+			GBufferPixelShaderExternalData psData = {};
+			psData.color = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f);
+
+			D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = DX12Helper::GetInstance().FillNextConstantBufferAndGetGPUDescriptorHandle(
+				(void*)(&psData), sizeof(GBufferPixelShaderExternalData));
+
+			//// Set this constant buffer handle
+			//// Note: This assumes that descriptor table 1 is the
+			////       place to put this particular descriptor.  This
+			////       is based on how we set up our root signature.
+			commandList->SetGraphicsRootDescriptorTable(1, cbHandlePS);
+
+			// Set the G-buffer textures as shader resources
+			// Set the SRV descriptor handle for this material's textures
+			// Note: This assumes that descriptor table 2 is for textures (as per our root sig)
+			commandList->SetGraphicsRootDescriptorTable(2, mat->GetFinalGPUHandleForTextures());
+
+			// Grab the mesh and its buffer views
+			std::shared_ptr<Mesh> mesh = e->GetMesh();
+			D3D12_VERTEX_BUFFER_VIEW vbv = mesh->GetVB();
+			D3D12_INDEX_BUFFER_VIEW  ibv = mesh->GetIB();
+
+			// Set the geometry
+			commandList->IASetVertexBuffers(0, 1, &vbv);
+			commandList->IASetIndexBuffer(&ibv);
+
+			// Draw
+			commandList->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
+
+		}
+	}
+}
+
+void Game::RenderLighting()
+{
+	commandList->SetGraphicsRootSignature(rootSignatureLighting.Get());
+	commandList->SetPipelineState(pipelineStateLighting.Get());
+
+	// Clear the render target
+	const float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	commandList->ClearRenderTargetView(lightTarget, clearColor, 0, 0);
+
+	commandList->OMSetRenderTargets(1, &lightTarget, FALSE, nullptr);
+
+	commandList->RSSetViewports(1, &viewport);
+	commandList->RSSetScissorRects(1, &scissorRect);
+	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	for (unsigned int i = 0; i < 3; i++) 
+	{		
+		//	Pixel shader data and cbuffer setup
+		{
+			Light light = lights[i];
+
+			PerFrameData psData = {};
+			psData.CameraPosition = camera->GetTransform()->GetPosition();
+			psData.InvViewProj = camera->GetInverseViewProjectionMatrix();
+
+			D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = DX12Helper::GetInstance().FillNextConstantBufferAndGetGPUDescriptorHandle(
+				(void*)(&psData), sizeof(PerFrameData));
+			commandList->SetGraphicsRootDescriptorTable(0, cbHandlePS);
+
+			PerLightData perLightData = {};
+			perLightData.ThisLight = light;
+
+			D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePerLight = DX12Helper::GetInstance().FillNextConstantBufferAndGetGPUDescriptorHandle(
+				(void*)(&perLightData), sizeof(PerLightData));
+
+			commandList->SetGraphicsRootDescriptorTable(1, cbHandlePerLight);
+
+			commandList->SetGraphicsRootDescriptorTable(2, gBufferSRVs[0]);
+
+			// Draw the light (e.g., fullscreen triangle)
+			commandList->DrawInstanced(3, 1, 0, 0);		
+		}
+	}
+}
+
+
+
+
+
+//	Pixel shader data and cbuffer setup
+//{
+	//PixelShaderExternalData psData = {};
+	//psData.uvScale = mat->GetUVScale();
+	//psData.uvOffset = mat->GetUVOffset();
+	//psData.cameraPosition = camera->GetTransform()->GetPosition();
+	//psData.lightCount = lightCount;
+	//memcpy(psData.lights, &lights[0], sizeof(Light) * MAX_LIGHTS);
+
+	//// Send this to a chunk of the constant buffer heap
+	//// and grab the GPU handle for it so we can set it for this draw
+	//D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = dx12Helper.FillNextConstantBufferAndGetGPUDescriptorHandle(
+	//	(void*)(&psData), sizeof(PixelShaderExternalData));
+
+	//// Set this constant buffer handle
+	//// Note: This assumes that descriptor table 1 is the
+	////       place to put this particular descriptor.  This
+	////       is based on how we set up our root signature.
+	//commandList->SetGraphicsRootDescriptorTable(1, cbHandlePS);
+//}

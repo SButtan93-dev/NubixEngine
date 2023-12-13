@@ -40,6 +40,7 @@ public:
 	HRESULT InitWindow();
 	HRESULT InitDirect3D();
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateGBufferTexture(ID3D12Device* device, UINT width, UINT height, DXGI_FORMAT format, UINT offset);
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateLightingTexture(ID3D12Device* device, UINT width, UINT height, DXGI_FORMAT format, UINT offset);
 	HRESULT Run();
 	void Quit();
 	virtual void OnResize();
@@ -88,9 +89,12 @@ protected:
 	unsigned int rtvDescriptorSize;
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvHeap;
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvHeap;
-	Microsoft::WRL::ComPtr<ID3D12Resource> gBufferRTVs[4];
 
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[4]; // Pointers into the RTV desc heap
+	Microsoft::WRL::ComPtr<ID3D12Resource> gBufferRTVs[4];
+	D3D12_GPU_DESCRIPTOR_HANDLE gBufferSRVs[4];
+	Microsoft::WRL::ComPtr<ID3D12Resource> lightBufferRTV;
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[5]; // Pointers into the RTV desc heap
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle;
 
 	std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> srvHandleCPU;
@@ -101,6 +105,8 @@ protected:
 	Microsoft::WRL::ComPtr<ID3D12Resource> backBuffers[numBackBuffers];
 	Microsoft::WRL::ComPtr<ID3D12Resource> backGBuffers[4];
 	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilBuffer;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> lightBuffer;
 
 	D3D12_VIEWPORT			viewport;
 	D3D12_RECT				scissorRect;

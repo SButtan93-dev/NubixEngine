@@ -56,8 +56,12 @@ public:
 	// Resource creation
 	D3D12_CPU_DESCRIPTOR_HANDLE LoadTexture(const wchar_t* file, bool generateMips = true);
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateStaticBuffer(unsigned int dataStride, unsigned int dataCount, void* data);
+	D3D12_GPU_DESCRIPTOR_HANDLE CreateGBufferSRV(Microsoft::WRL::ComPtr<ID3D12Resource> gBufferTexture, DXGI_FORMAT format);
+	//void CreateLightingPassSRV(ID3D12Resource* gBufferTexture, D3D12_CPU_DESCRIPTOR_HANDLE& srvHandle);
 	//Microsoft::WRL::ComPtr<ID3D12Resource> CreateGBufferTexture(ID3D12Device* device, UINT width, UINT height, DXGI_FORMAT format, UINT offset);
 	
+	std::vector<Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>> shaderVisibleTextureDescriptorHeaps;
+
 	// Resource usage
 	D3D12_GPU_DESCRIPTOR_HANDLE FillNextConstantBufferAndGetGPUDescriptorHandle(
 		void* data,

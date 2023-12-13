@@ -63,7 +63,18 @@ float Attenuate(Light light, float3 worldPos)
 	return att * att;
 }
 
+// Converts uv and depth value to world space
+float3 WorldSpaceFromDepth(float depth, float2 uv, matrix invViewProj)
+{
+	// Back to NDCs
+    uv = uv * 2.0f - 1.0f;
+    uv.y *= -1.0f; // Flip y due to UV <--> NDC 
+    float4 screenPos = float4(uv, depth, 1.0f);
 
+	// Back to world space
+    float4 worldPos = mul(invViewProj, screenPos);
+    return worldPos.xyz / worldPos.w;
+}
 
 // === BASIC LIGHTING ===============================================
 

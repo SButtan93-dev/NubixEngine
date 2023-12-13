@@ -28,6 +28,9 @@ public:
 	void Update(float deltaTime, float totalTime);
 	void Draw(float deltaTime, float totalTime);
 
+	void RenderGBuffer();
+	void RenderLighting();
+
 	Physics* physics;
 
 private:
@@ -38,16 +41,16 @@ private:
 	void GenerateLights();
 	
 	// Overall pipeline and rendering requirements
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature;
-	Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState;
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignatureGBuffer;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineStateGBuffer;
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> gBufferAlbedo;
-		Microsoft::WRL::ComPtr<ID3D12Resource> gBufferNormals;
-		Microsoft::WRL::ComPtr<ID3D12Resource> gBufferDepth;
-		Microsoft::WRL::ComPtr<ID3D12Resource> gBufferMetalRough;
+	// Overall pipeline and rendering requirements
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignatureLighting;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineStateLighting;
 
-		D3D12_CPU_DESCRIPTOR_HANDLE targets[4];
 
+	D3D12_CPU_DESCRIPTOR_HANDLE targets[4];
+	D3D12_CPU_DESCRIPTOR_HANDLE lightTarget;
 
 	// Scene
 	int lightCount;

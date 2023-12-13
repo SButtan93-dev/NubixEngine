@@ -26,3 +26,14 @@ struct GBufferPixelShaderExternalData
 {
 	DirectX::XMFLOAT4 color;
 };
+
+struct PerFrameData 
+{
+	DirectX::XMFLOAT4X4 InvViewProj;
+	DirectX::XMFLOAT3 CameraPosition;
+};
+
+struct PerLightData 
+{
+	Light ThisLight;
+};

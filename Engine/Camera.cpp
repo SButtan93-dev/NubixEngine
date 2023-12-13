@@ -141,6 +141,19 @@ void Camera::UpdateProjectionMatrix(float aspectRatio)
 	XMStoreFloat4x4(&projMatrix, P);
 }
 
+DirectX::XMFLOAT4X4 Camera::GetInverseViewProjectionMatrix() {
+	XMMATRIX view = XMLoadFloat4x4(&viewMatrix);
+	XMMATRIX proj = XMLoadFloat4x4(&projMatrix);
+
+	XMMATRIX viewProj = view * proj;
+	XMMATRIX invViewProj = XMMatrixInverse(nullptr, viewProj);
+
+	DirectX::XMFLOAT4X4 invViewProjMatrix;
+	XMStoreFloat4x4(&invViewProjMatrix, invViewProj);
+
+	return invViewProjMatrix;
+}
+
 DirectX::XMFLOAT4X4 Camera::GetView() { return viewMatrix; }
 DirectX::XMFLOAT4X4 Camera::GetProjection() { return projMatrix; }
 Transform* Camera::GetTransform() { return &transform; }

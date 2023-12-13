@@ -189,6 +189,33 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DX12Helper::CreateStaticBuffer(unsigned i
 	return buffer;
 }
 
+D3D12_GPU_DESCRIPTOR_HANDLE DX12Helper::CreateGBufferSRV(Microsoft::WRL::ComPtr<ID3D12Resource> gBufferTexture, DXGI_FORMAT format)
+{
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = format;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+
+	// Grab the actual heap start on both sides and offset to the next open SRV portion
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = cbvSrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = cbvSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+
+	cpuHandle.ptr += (SIZE_T)srvDescriptorOffset * cbvSrvDescriptorHeapIncrementSize;
+	gpuHandle.ptr += (SIZE_T)srvDescriptorOffset * cbvSrvDescriptorHeapIncrementSize;
+
+	device->CreateShaderResourceView(gBufferTexture.Get(), &srvDesc, cpuHandle);
+
+	//// We know where to copy these descriptors, so copy all of them and remember the new offset
+	//device->CopyDescriptorsSimple(1, cpuHandle, firstDescriptorToCopy, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	srvDescriptorOffset += 1;
+
+	// Pass back the GPU handle to the start of this section
+	// in the final CBV/SRV heap so the caller can use it later
+	return gpuHandle;
+}
+
 //Microsoft::WRL::ComPtr<ID3D12Resource> DX12Helper::CreateGBufferTexture(ID3D12Device* device, UINT width, UINT height, DXGI_FORMAT format, UINT offset)
 //{
 //	Microsoft::WRL::ComPtr<ID3D12Resource> gBufferTexture;

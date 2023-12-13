@@ -301,7 +301,7 @@ HRESULT DXCore::InitDirect3D()
 
 		// First create a descriptor heap for RTVs
 		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-		rtvHeapDesc.NumDescriptors = 4;
+		rtvHeapDesc.NumDescriptors = 5;
 		rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 		device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(rtvHeap.GetAddressOf()));
 
@@ -319,70 +319,6 @@ HRESULT DXCore::InitDirect3D()
 	//		device->CreateRenderTargetView(backBuffers[i].Get(), 0, rtvHandles[i]);
 	//	}
 	//}
-
-	// Create Gbuffers for deferred rendering
-	{
-		const int numGBufferTextures = 4;
-		DXGI_FORMAT gBufferFormat[numGBufferTextures] = { DXGI_FORMAT_R8G8B8A8_UNORM,  DXGI_FORMAT_R8G8B8A8_UNORM,  DXGI_FORMAT_R8G8B8A8_UNORM,  DXGI_FORMAT_R8G8B8A8_UNORM };
-
-		for (int i = 0; i < numGBufferTextures; i++) {
-
-			//Microsoft::WRL::ComPtr<ID3D12Resource> gBufferTexture;
-
-			D3D12_HEAP_PROPERTIES heapProperties = {};
-			heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
-			heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-			heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-			heapProperties.CreationNodeMask = 1;
-			heapProperties.VisibleNodeMask = 1;
-
-			D3D12_RESOURCE_DESC resourceDesc = {};
-			resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-			resourceDesc.Alignment = 0;
-			resourceDesc.Width = windowWidth;
-			resourceDesc.Height = windowHeight;
-			resourceDesc.DepthOrArraySize = 1;
-			resourceDesc.MipLevels = 1;
-			resourceDesc.Format = gBufferFormat[i];
-			resourceDesc.SampleDesc.Count = 1;
-			resourceDesc.SampleDesc.Quality = 0;
-			resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-			resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET; // Assuming it's a render target
-
-			HRESULT hr = device->CreateCommittedResource(
-				&heapProperties,
-				D3D12_HEAP_FLAG_NONE,
-				&resourceDesc,
-				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, // Start in a PS resource state
-				nullptr,
-				IID_PPV_ARGS(gBufferTexture[i].GetAddressOf()));
-
-			// Create SRV descriptor for the texture
-			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			srvDesc.Format = gBufferFormat[i];
-			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-			srvDesc.Texture2D.MipLevels = 1;
-
-			// Get the CPU handle for the descriptor heap
-			srvHandleCPU.push_back((DX12Helper::GetInstance().GetCBVSRVDescriptorHeap()->GetCPUDescriptorHandleForHeapStart()));
-
-			// Move the handle to the current descriptor
-			srvHandleCPU[i].ptr += i * device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-			// Get the GPU handle for the descriptor heap
-			srvHandleGPU.push_back(DX12Helper::GetInstance().GetCBVSRVDescriptorHeap()->GetGPUDescriptorHandleForHeapStart());
-			srvHandleGPU[i].ptr += i * device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-
-			// Create the SRV in the descriptor heap
-			device->CreateShaderResourceView(gBufferTexture[i].Get(), &srvDesc, srvHandleCPU[i]);
-
-			// Easier debugging
-			gBufferTexture[i]->SetName(L"GBufferTextureSRV");
-
-		}
-	}
 
 	// Create depth/stencil buffer
 	{
@@ -471,6 +407,7 @@ HRESULT DXCore::InitDirect3D()
 	return S_OK;
 }
 
+
 Microsoft::WRL::ComPtr<ID3D12Resource> DXCore::CreateGBufferTexture(ID3D12Device* device, UINT width, UINT height, DXGI_FORMAT format, UINT offset)
 {
 	//Microsoft::WRL::ComPtr<ID3D12Resource> gBufferTexture1;
@@ -514,7 +451,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DXCore::CreateGBufferTexture(ID3D12Device
 		&heapProperties,
 		D3D12_HEAP_FLAG_NONE,
 		&resourceDesc,
-		D3D12_RESOURCE_STATE_PRESENT,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		&clearValue,
 		IID_PPV_ARGS(backGBuffers[offset].GetAddressOf()))))
 	{
@@ -527,6 +464,65 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DXCore::CreateGBufferTexture(ID3D12Device
 		device->CreateRenderTargetView(backGBuffers[offset].Get(), nullptr, rtvHandles[offset]);
 
 		return backGBuffers[offset];
+	}
+}
+
+Microsoft::WRL::ComPtr<ID3D12Resource> DXCore::CreateLightingTexture(ID3D12Device* device, UINT width, UINT height, DXGI_FORMAT format, UINT offset)
+{
+	//Microsoft::WRL::ComPtr<ID3D12Resource> gBufferTexture1;
+
+	// Describe the G-buffer texture
+	D3D12_RESOURCE_DESC resourceDesc = {};
+	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	resourceDesc.Alignment = 0;
+	resourceDesc.Width = width;
+	resourceDesc.Height = height;
+	resourceDesc.DepthOrArraySize = 1;
+	resourceDesc.MipLevels = 1;
+	resourceDesc.Format = format;
+	resourceDesc.SampleDesc.Count = 1;
+	resourceDesc.SampleDesc.Quality = 0;
+	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+	D3D12_HEAP_PROPERTIES heapProperties = {};
+	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT; // Use DEFAULT type for render target textures
+	heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	heapProperties.CreationNodeMask = 1;
+	heapProperties.VisibleNodeMask = 1;
+
+	// Specify the clear value
+	D3D12_CLEAR_VALUE clearValue = {};
+	clearValue.Format = format; // Same format as the resource
+	clearValue.Color[0] = 0.0f; // Red component
+	clearValue.Color[1] = 0.0f; // Green component
+	clearValue.Color[2] = 0.0f; // Blue component
+	clearValue.Color[3] = 1.0f; // Alpha component
+
+	//backGBuffers[offset];
+
+	//		// Grab this buffer from the swap chain
+	//swapChain->GetBuffer(offset, IID_PPV_ARGS(backGBuffers[offset].GetAddressOf()));
+
+	// Create the G-buffer texture
+	if (SUCCEEDED(device->CreateCommittedResource(
+		&heapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&resourceDesc,
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		&clearValue,
+		IID_PPV_ARGS(lightBuffer.GetAddressOf()))))
+	{
+		// Easier debugging
+		lightBuffer->SetName(L"LightingTextureRTV");
+
+		rtvHandles[offset] = rtvHeap->GetCPUDescriptorHandleForHeapStart();
+		rtvHandles[offset].ptr += (offset)*rtvDescriptorSize; // Move the handle to the current descriptor
+
+		device->CreateRenderTargetView(lightBuffer.Get(), nullptr, rtvHandles[offset]);
+
+		return lightBuffer;
 	}
 }
 

@@ -106,6 +106,12 @@
     <FxCompile Include="GBuffer.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="DeferredDirectionalLightPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="DeferredDirectionalLightVS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
