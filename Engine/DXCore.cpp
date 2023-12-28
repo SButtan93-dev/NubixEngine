@@ -441,10 +441,10 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DXCore::CreateGBufferTexture(ID3D12Device
 	clearValue.Color[2] = 0.0f; // Blue component
 	clearValue.Color[3] = 1.0f; // Alpha component
 
-	backGBuffers[offset];
+	//backGBuffers[offset];
 
 	//		// Grab this buffer from the swap chain
-	swapChain->GetBuffer(offset, IID_PPV_ARGS(backGBuffers[offset].GetAddressOf()));
+	//swapChain->GetBuffer(offset, IID_PPV_ARGS(backGBuffers[offset].GetAddressOf()));
 
 	// Create the G-buffer texture
 	if (SUCCEEDED(device->CreateCommittedResource(
@@ -453,17 +453,17 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DXCore::CreateGBufferTexture(ID3D12Device
 		&resourceDesc,
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		&clearValue,
-		IID_PPV_ARGS(backGBuffers[offset].GetAddressOf()))))
+		IID_PPV_ARGS(GBuffers[offset].GetAddressOf()))))
 	{
 		// Easier debugging
-		backGBuffers[offset]->SetName(L"GBufferTextureRTV");
+		GBuffers[offset]->SetName(L"GBufferTextureRTV");
 
 		rtvHandles[offset] = rtvHeap->GetCPUDescriptorHandleForHeapStart();
 		rtvHandles[offset].ptr += (offset) * rtvDescriptorSize; // Move the handle to the current descriptor
 
-		device->CreateRenderTargetView(backGBuffers[offset].Get(), nullptr, rtvHandles[offset]);
+		device->CreateRenderTargetView(GBuffers[offset].Get(), nullptr, rtvHandles[offset]);
 
-		return backGBuffers[offset];
+		return GBuffers[offset];
 	}
 }
 

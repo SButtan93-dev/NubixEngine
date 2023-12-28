@@ -37,3 +37,24 @@ struct PerLightData
 {
 	Light ThisLight;
 };
+
+// Must match vertex shader definition!
+struct VertexShaderPointLightData
+{
+	DirectX::XMFLOAT4X4 view;
+	DirectX::XMFLOAT4X4 projection;
+	DirectX::XMFLOAT3 cameraPosition;
+};
+
+struct PerLight
+{
+	DirectX::XMFLOAT4X4 world;
+};
+
+struct PerFramePointLight
+{	
+	DirectX::XMFLOAT4X4 InvViewProj;
+	DirectX::XMFLOAT3 CameraPosition;
+	float WindowWidth;
+	float WindowHeight;
+};

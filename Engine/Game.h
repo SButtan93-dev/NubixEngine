@@ -48,9 +48,14 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignatureLighting;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineStateLighting;
 
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignaturePointLight;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineStatePointLight;
+
 
 	D3D12_CPU_DESCRIPTOR_HANDLE targets[4];
 	D3D12_CPU_DESCRIPTOR_HANDLE lightTarget;
+
+	std::shared_ptr<Mesh> sphere3;
 
 	// Scene
 	int lightCount;
