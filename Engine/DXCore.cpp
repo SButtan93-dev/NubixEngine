@@ -270,7 +270,7 @@ HRESULT DXCore::InitDirect3D()
 	{
 		// Create a description of how our swap chain should work
 		DXGI_SWAP_CHAIN_DESC swapDesc = {};
-		swapDesc.BufferCount = 4; //numBackBuffers;
+		swapDesc.BufferCount = 2; //numBackBuffers;
 		swapDesc.BufferDesc.Width = windowWidth;
 		swapDesc.BufferDesc.Height = windowHeight;
 		swapDesc.BufferDesc.RefreshRate.Numerator = 60;
@@ -293,7 +293,7 @@ HRESULT DXCore::InitDirect3D()
 	}
 
 	// Create back buffers
-	//{
+	{
 	//	// What is the increment size between RTV descriptors in a
 	//	// descriptor heap?  This differs per GPU so we need to 
 	//	// get it at applications start up
@@ -301,24 +301,24 @@ HRESULT DXCore::InitDirect3D()
 
 		// First create a descriptor heap for RTVs
 		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-		rtvHeapDesc.NumDescriptors = 5;
+		rtvHeapDesc.NumDescriptors = 7;
 		rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 		device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(rtvHeap.GetAddressOf()));
+		
+		// Now create the RTV handles for each buffer (buffers were created by the swap chain)
+		for (unsigned int i = 0; i < numBackBuffers; i++)
+		{
+			// Grab this buffer from the swap chain
+			swapChain->GetBuffer(i, IID_PPV_ARGS(backBuffers[i].GetAddressOf()));
 
-	//	// Now create the RTV handles for each buffer (buffers were created by the swap chain)
-	//	for (unsigned int i = 0; i < numBackBuffers; i++)
-	//	{
-	//		// Grab this buffer from the swap chain
-	//		swapChain->GetBuffer(i, IID_PPV_ARGS(backBuffers[i].GetAddressOf()));
+			// Make a handle for it
+			rtvHandles[i] = rtvHeap->GetCPUDescriptorHandleForHeapStart();
+			rtvHandles[i].ptr += rtvDescriptorSize * i;
 
-	//		// Make a handle for it
-	//		rtvHandles[i] = rtvHeap->GetCPUDescriptorHandleForHeapStart();
-	//		rtvHandles[i].ptr += rtvDescriptorSize * i;
-
-	//		// Create the render target view
-	//		device->CreateRenderTargetView(backBuffers[i].Get(), 0, rtvHandles[i]);
-	//	}
-	//}
+			// Create the render target view
+			device->CreateRenderTargetView(backBuffers[i].Get(), 0, rtvHandles[i]);
+		}
+	}
 
 	// Create depth/stencil buffer
 	{
@@ -441,11 +441,6 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DXCore::CreateGBufferTexture(ID3D12Device
 	clearValue.Color[2] = 0.0f; // Blue component
 	clearValue.Color[3] = 1.0f; // Alpha component
 
-	//backGBuffers[offset];
-
-	//		// Grab this buffer from the swap chain
-	//swapChain->GetBuffer(offset, IID_PPV_ARGS(backGBuffers[offset].GetAddressOf()));
-
 	// Create the G-buffer texture
 	if (SUCCEEDED(device->CreateCommittedResource(
 		&heapProperties,
@@ -453,17 +448,17 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DXCore::CreateGBufferTexture(ID3D12Device
 		&resourceDesc,
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		&clearValue,
-		IID_PPV_ARGS(GBuffers[offset].GetAddressOf()))))
+		IID_PPV_ARGS(GBuffers[offset-2].GetAddressOf()))))
 	{
 		// Easier debugging
-		GBuffers[offset]->SetName(L"GBufferTextureRTV");
+		GBuffers[offset-2]->SetName(L"GBufferTextureRTV");
 
 		rtvHandles[offset] = rtvHeap->GetCPUDescriptorHandleForHeapStart();
 		rtvHandles[offset].ptr += (offset) * rtvDescriptorSize; // Move the handle to the current descriptor
 
-		device->CreateRenderTargetView(GBuffers[offset].Get(), nullptr, rtvHandles[offset]);
+		device->CreateRenderTargetView(GBuffers[offset-2].Get(), nullptr, rtvHandles[offset]);
 
-		return GBuffers[offset];
+		return GBuffers[offset-2];
 	}
 }
 
@@ -499,11 +494,6 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DXCore::CreateLightingTexture(ID3D12Devic
 	clearValue.Color[1] = 0.0f; // Green component
 	clearValue.Color[2] = 0.0f; // Blue component
 	clearValue.Color[3] = 1.0f; // Alpha component
-
-	//backGBuffers[offset];
-
-	//		// Grab this buffer from the swap chain
-	//swapChain->GetBuffer(offset, IID_PPV_ARGS(backGBuffers[offset].GetAddressOf()));
 
 	// Create the G-buffer texture
 	if (SUCCEEDED(device->CreateCommittedResource(

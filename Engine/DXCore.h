@@ -73,7 +73,7 @@ protected:
 
 	// Swap chain buffer tracking
 	static const unsigned int numBackBuffers = 2;
-	unsigned int currentSwapBuffer;
+	unsigned int currentSwapBuffer = 0;
 
 	unsigned int currentGBufferCount = 0;
 
@@ -94,7 +94,7 @@ protected:
 	D3D12_GPU_DESCRIPTOR_HANDLE gBufferSRVs[4];
 	Microsoft::WRL::ComPtr<ID3D12Resource> lightBufferRTV;
 
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[5]; // Pointers into the RTV desc heap
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[7]; // Pointers into the RTV desc heap
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle;
 
 	std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> srvHandleCPU;

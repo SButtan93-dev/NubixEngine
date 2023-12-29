@@ -665,17 +665,17 @@ void Game::CreateBasicGeometry()
 	D3D12_CPU_DESCRIPTOR_HANDLE scratchedMetal = LoadTexture(L"../../Assets/Textures/scratched_metal.png");
 
 	// During initialization
-	gBufferRTVs[0] = CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
-	gBufferRTVs[1] = CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 1);
-	gBufferRTVs[2] = CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R32_FLOAT, 2);
-	gBufferRTVs[3] = CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 3);
+	gBufferRTVs[0] = CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 2);
+	gBufferRTVs[1] = CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 3);
+	gBufferRTVs[2] = CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R32_FLOAT, 4);
+	gBufferRTVs[3] = CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 5);
 
 	gBufferSRVs[0] = DX12Helper::GetInstance().CreateGBufferSRV(gBufferRTVs[0], DXGI_FORMAT_R8G8B8A8_UNORM);
 	gBufferSRVs[1] = DX12Helper::GetInstance().CreateGBufferSRV(gBufferRTVs[1], DXGI_FORMAT_R8G8B8A8_UNORM); 
 	gBufferSRVs[2] = DX12Helper::GetInstance().CreateGBufferSRV(gBufferRTVs[2], DXGI_FORMAT_R32_FLOAT);  
 	gBufferSRVs[3] = DX12Helper::GetInstance().CreateGBufferSRV(gBufferRTVs[3], DXGI_FORMAT_R8G8B8A8_UNORM);  
 
-	lightBufferRTV = CreateLightingTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 4);
+	lightBufferRTV = CreateLightingTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 6);
 
 	// Create materials
 	// Note: Samplers are handled by a single static sampler in the
@@ -735,12 +735,12 @@ void Game::CreateBasicGeometry()
 	entities.push_back(entitySphere2);
 	//entities.push_back(entitySphere2);
 
-	targets[0] = rtvHandles[0];
-	targets[1] = rtvHandles[1];
-	targets[2] = rtvHandles[2];
-	targets[3] = rtvHandles[3];
+	targets[0] = rtvHandles[2];
+	targets[1] = rtvHandles[3];
+	targets[2] = rtvHandles[4];
+	targets[3] = rtvHandles[5];
 
-	lightTarget = rtvHandles[4];
+	lightTarget = rtvHandles[6];
 }
 
 
@@ -848,6 +848,8 @@ void Game::Draw(float deltaTime, float totalTime)
 	// Grab the helper
 	DX12Helper& dx12Helper = DX12Helper::GetInstance();
 
+	//currentSwapBuffer = swapChain->GetCurrentBackBufferIndex();
+
 	// Clearing the render target
 	{
 		for (int i = 0; i < 4; i++)
@@ -862,6 +864,14 @@ void Game::Draw(float deltaTime, float totalTime)
 			commandList->ResourceBarrier(1, &rb);
 		}
 
+		// Transition the back buffer from PRESENT to RENDER_TARGET
+		D3D12_RESOURCE_BARRIER barrier = {};
+		barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		barrier.Transition.pResource = backBuffers[currentSwapBuffer].Get();
+		barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+		barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+		barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		commandList->ResourceBarrier(1, &barrier);
 
 		// Background color for clearing
 		float color[] = { 0, 0, 0, 1.0f };
@@ -875,7 +885,12 @@ void Game::Draw(float deltaTime, float totalTime)
 				0, 0); // No scissor rectangles
 		}
 
+		float color2[] = { 0, 0, 0, 1.0f };
 
+		commandList->ClearRenderTargetView(
+			rtvHandles[currentSwapBuffer],
+			color2,
+			0, 0); // No scissor rectangles
 
 		// Clear the depth buffer, too
 		commandList->ClearDepthStencilView(
@@ -933,7 +948,10 @@ void Game::Draw(float deltaTime, float totalTime)
 		RenderGBuffer();
 	
 		RenderLighting();
+	}
 
+	// Present
+	{
 		for (int i = 0; i < 4; i++)
 		{
 			D3D12_RESOURCE_BARRIER rb = {};
@@ -945,10 +963,34 @@ void Game::Draw(float deltaTime, float totalTime)
 			rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 			commandList->ResourceBarrier(1, &rb);
 		}
-	}
 
-	// Present
-	{
+		// Transition lightTarget to readable state
+		D3D12_RESOURCE_BARRIER lightTargetToReadBarrier = {};
+		lightTargetToReadBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		lightTargetToReadBarrier.Transition.pResource = lightBuffer.Get(); // Replace with your light target resource
+		lightTargetToReadBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+		lightTargetToReadBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+		lightTargetToReadBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		commandList->ResourceBarrier(1, &lightTargetToReadBarrier);
+
+		// Transition back buffer to writable state
+		D3D12_RESOURCE_BARRIER backBufferToWriteBarrier = {};
+		backBufferToWriteBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		backBufferToWriteBarrier.Transition.pResource = backBuffers[currentSwapBuffer].Get();
+		backBufferToWriteBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+		backBufferToWriteBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+		backBufferToWriteBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		commandList->ResourceBarrier(1, &backBufferToWriteBarrier);
+
+		// Copy lightTarget to the back buffer
+		commandList->CopyResource(backBuffers[currentSwapBuffer].Get(), lightBuffer.Get());
+
+		// Transition back buffer to present state
+		D3D12_RESOURCE_BARRIER backBufferToPresentBarrier = backBufferToWriteBarrier;
+		backBufferToPresentBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+		backBufferToPresentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+		commandList->ResourceBarrier(1, &backBufferToPresentBarrier);
+
 		// Must occur BEFORE present
 		// Note: Resetting the allocator every frame requires us to sync the CPU & GPU,
 		//       since we cannot reset the allocator if its command list is executing.
@@ -965,6 +1007,10 @@ void Game::Draw(float deltaTime, float totalTime)
 
 		// Figure out which buffer is next
 		currentSwapBuffer++;
+
+		if (currentSwapBuffer >= 2)
+			currentSwapBuffer = 0;
+
 		currentGBufferCount++;
 		if (currentGBufferCount >= 4)
 			currentGBufferCount = 0;
