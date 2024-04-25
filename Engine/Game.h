@@ -31,6 +31,8 @@ public:
 	void RenderGBuffer();
 	void RenderLighting();
 
+	float Lerp(float a, float b, float f);
+
 	Physics* physics;
 
 private:
@@ -62,6 +64,14 @@ private:
 	std::vector<Light> lights;
 	std::shared_ptr<Camera> camera;
 	std::vector<std::shared_ptr<GameEntity>> entities;
+
+	std::vector<DirectX::XMFLOAT3> targetPositions;
+	std::vector<DirectX::XMFLOAT3> originalPositions;
+
+	float count = 0.0f;
+
+
+	bool forwardDest = false;
 
 };
 

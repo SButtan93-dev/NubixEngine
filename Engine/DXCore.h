@@ -49,7 +49,7 @@ public:
 	virtual void Init() = 0;
 	virtual void Update(float deltaTime, float totalTime) = 0;
 	virtual void Draw(float deltaTime, float totalTime) = 0;
-
+	float deltaTime;
 
 protected:
 	HINSTANCE		hInstance;		// The handle to the application
@@ -119,7 +119,8 @@ private:
 	// Timing related data
 	double perfCounterSeconds;
 	float totalTime;
-	float deltaTime;
+	
+
 	__int64 startTime;
 	__int64 currentTime;
 	__int64 previousTime;

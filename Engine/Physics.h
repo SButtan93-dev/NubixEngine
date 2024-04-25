@@ -2,8 +2,23 @@
 
 #include "PxPhysicsAPI.h"
 #include "pvd/PxPvdTransport.h"
+#include "NvBlastTk.h"
+#include "lowlevel/NvBlast.h"
+#include "NvBlastTkFramework.h"
 #include "Transform.h";
 #include <iostream>
+
+#pragma comment(lib, "NvBlast.lib")
+#pragma comment(lib, "NvBlastExtAssetUtils.lib")
+#pragma comment(lib, "NvBlastExtAuthoring.lib")
+#pragma comment(lib, "NvBlastExtSerialization.lib")
+#pragma comment(lib, "NvBlastExtShaders.lib")
+#pragma comment(lib, "NvBlastExtStress.lib")
+#pragma comment(lib, "NvBlastExtTkSerialization.lib")
+#pragma comment(lib, "NvBlastGlobals.lib")
+#pragma comment(lib, "NvBlastTk.lib")
+#pragma comment(lib, "UnitTests.lib")
+
 
 class Physics
 {
@@ -35,6 +50,11 @@ private:
 	physx::PxShape* sphereShape;
 	physx::PxShape* planeShape;
 	physx::PxShape* planeShape2;
+
+	// Blast Toolkit members
+	Nv::Blast::TkFramework* framework;
+	Nv::Blast::TkAsset* blastAsset;
+	std::vector<Nv::Blast::TkActor*> blastActors;
 
 public:
 

@@ -3,7 +3,7 @@
 #include <DirectXMath.h>
 
 // Must match the MAX_LIGHTS definition in your shaders
-#define MAX_LIGHTS 128
+#define MAX_LIGHTS 10
 
 // These should also match lights in shaders
 #define LIGHT_TYPE_DIRECTIONAL	0

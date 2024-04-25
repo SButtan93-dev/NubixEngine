@@ -26,7 +26,6 @@ Texture2D GBufferNormals : register(t1);
 Texture2D GBufferDepth : register(t2);
 Texture2D GBufferMetalRough : register(t3);
 
-
 float4 main(VertexToPixel input) : SV_TARGET
 {
 	// Load pixels from G-buffer (faster than sampling)
@@ -47,6 +46,6 @@ float4 main(VertexToPixel input) : SV_TARGET
     float metal = metalRough.r;
     float roughness = metalRough.g;
     float3 specColor = lerp(F0_NON_METAL.rrr, surfaceColor, metal);
-    float3 color = PointLightPBR(ThisLight, normal, worldPos, CameraPosition, roughness, metal, surfaceColor, specColor);
-    return float4(color, 1);
+    float3 color = PointLight(ThisLight, normal, worldPos, CameraPosition, roughness, surfaceColor, specColor.x);
+    return float4(pow(color, 1.0f / 2.2f), 1.0f);
 }

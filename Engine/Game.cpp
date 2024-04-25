@@ -94,7 +94,10 @@ void Game::Init()
 		5.0f,							// Move speed
 		0.002f,							// Look speed
 		XM_PIDIV4,						// Field of view
-		windowWidth / (float)windowHeight);	// Aspect ratio
+		windowWidth / (float)windowHeight,
+		0.01f,
+		400.0f);
+
 }
 
 
@@ -119,7 +122,6 @@ void Game::CreateRootSigAndPipelineState()
 	Microsoft::WRL::ComPtr<ID3DBlob> pointLightingVertexShaderByteCode;
 	//Microsoft::WRL::ComPtr<ID3DBlob> pixelShaderByteCode;
 	Microsoft::WRL::ComPtr<ID3DBlob> pointLightingPixelShaderByteCode;
-
 
 	// Load shaders
 	{
@@ -562,7 +564,8 @@ void Game::CreateRootSigAndPipelineState()
 
 		// Depth stencil state (read-only depth)
 		psoDescLighting.DepthStencilState.DepthEnable = false;
-		psoDescLighting.DSVFormat = DXGI_FORMAT_UNKNOWN;
+		//psoDescLighting.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+		//psoDescLighting.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
 
 		// Additive blending for lighting calculations
 		psoDescLighting.BlendState.RenderTarget[0].BlendEnable = TRUE;
@@ -610,12 +613,13 @@ void Game::CreateRootSigAndPipelineState()
 		psoDescPointLight.SampleDesc.Quality = 0; // Default quality level
 
 		psoDescPointLight.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
-		psoDescPointLight.RasterizerState.CullMode = D3D12_CULL_MODE_BACK; // or use D3D12_CULL_MODE_NONE if culling is not desired
+		psoDescPointLight.RasterizerState.CullMode = D3D12_CULL_MODE_NONE; // or use D3D12_CULL_MODE_NONE if culling is not desired
 		psoDescPointLight.RasterizerState.DepthClipEnable = TRUE; // typically enabled
 
 		// Depth stencil state (read-only depth)
 		psoDescPointLight.DepthStencilState.DepthEnable = false;
-		//psoDescPointLight.DSVFormat = DXGI_FORMAT_UNKNOWN;
+		//psoDescPointLight.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+		//psoDescPointLight.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
 
 		// Additive blending for lighting calculations
 		psoDescPointLight.BlendState.RenderTarget[0].BlendEnable = TRUE;
@@ -723,6 +727,9 @@ void Game::CreateBasicGeometry()
 	entitySphere->GetTransform()->SetPosition(0.0f, 10.0f, 100.0f);
 
 	sphere3 = std::make_shared<Mesh>(FixPath(L"../../Assets/Models/sphere.obj").c_str());
+	//Mesh abc = Mesh(FixPath(L"../../Assets/Models/sphere.obj").c_str());
+	//GameEntity* abc2 = new GameEntity(abc, scratchedMat);
+	//abc2->GetTransform()->SetScale(0.1f, 0.1f, 0.1f);
 	
 	//std::shared_ptr<GameEntity> entitySphere2 = std::make_shared<GameEntity>(sphere2, bronzeMat);
 	//entitySphere2->GetTransform()->SetPosition(3, 0, 0);
@@ -778,11 +785,14 @@ void Game::GenerateLights()
 	{
 		Light point = {};
 		point.Type = LIGHT_TYPE_POINT;
-		point.Position = XMFLOAT3(RandomRange(-15.0f, -15.0f), RandomRange(-2.0f, 20.0f), RandomRange(0, 30));
+		point.Position = XMFLOAT3(RandomRange(-50.0f, 50.0f), 2.0f, RandomRange(-5.0f, 10.0f));
 		point.Color = XMFLOAT3(RandomRange(0, 1), RandomRange(0, 1), RandomRange(0, 1));
-		point.Range = 80.0f;
+		point.Range = 50.0f;
 		point.Intensity = 0.1f;// RandomRange(0.1f, 3.0f);
+		//point.Direction = XMFLOAT3(1, 1, 1);
+		originalPositions.push_back(point.Position);
 
+		targetPositions.push_back(XMFLOAT3(RandomRange(-50.0, 50.0f), 5.0f, RandomRange(-5.0f, 10.0f)));
 		// Add to the list
 		lights.push_back(point);
 	}
@@ -885,12 +895,12 @@ void Game::Draw(float deltaTime, float totalTime)
 				0, 0); // No scissor rectangles
 		}
 
-		float color2[] = { 0, 0, 0, 1.0f };
+		//float color2[] = { 0, 0, 0, 1.0f };
 
-		commandList->ClearRenderTargetView(
-			rtvHandles[currentSwapBuffer],
-			color2,
-			0, 0); // No scissor rectangles
+		//commandList->ClearRenderTargetView(
+		//	rtvHandles[currentSwapBuffer],
+		//	color2,
+		//	0, 0); // No scissor rectangles
 
 		// Clear the depth buffer, too
 		commandList->ClearDepthStencilView(
@@ -946,7 +956,7 @@ void Game::Draw(float deltaTime, float totalTime)
 		int count = 0;
 
 		RenderGBuffer();
-	
+
 		RenderLighting();
 	}
 
@@ -990,6 +1000,15 @@ void Game::Draw(float deltaTime, float totalTime)
 		backBufferToPresentBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
 		backBufferToPresentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 		commandList->ResourceBarrier(1, &backBufferToPresentBarrier);
+
+		D3D12_RESOURCE_BARRIER barrier = {};
+		barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		barrier.Transition.pResource = lightBuffer.Get(); // Replace with your actual resource
+		barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
+		barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+		barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		commandList->ResourceBarrier(1, &barrier);
 
 		// Must occur BEFORE present
 		// Note: Resetting the allocator every frame requires us to sync the CPU & GPU,
@@ -1092,7 +1111,7 @@ void Game::RenderLighting()
 	const float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	commandList->ClearRenderTargetView(lightTarget, clearColor, 0, 0);
 
-	commandList->OMSetRenderTargets(1, &lightTarget, FALSE, nullptr);
+	commandList->OMSetRenderTargets(1, &lightTarget, FALSE, 0);
 
 	commandList->RSSetViewports(1, &viewport);
 	commandList->RSSetScissorRects(1, &scissorRect);
@@ -1130,8 +1149,11 @@ void Game::RenderLighting()
 	
 	commandList->SetGraphicsRootSignature(rootSignaturePointLight.Get());
 
-	for (unsigned int i = 3; i < 100; i++)
+	float j = 0;
+
+	for (unsigned int i = 3; i < 10; i++)
 	{
+		float lerpFactor = deltaTime;
 		commandList->SetPipelineState(pipelineStatePointLight.Get());
 		//	Pixel shader data and cbuffer setup
 		{
@@ -1146,8 +1168,34 @@ void Game::RenderLighting()
 				(void*)(&vsData), sizeof(VertexShaderPointLightData));
 			commandList->SetGraphicsRootDescriptorTable(0, cbHandleVS_1);
 
+			if (!forwardDest) {
+				// Move towards the target position
+				count = min(count + 0.0001f, 1.0f); // Increment count, clamped to 1.0
+				lights[i].Position.x = Lerp(light.Position.x, targetPositions[i-3].x, count);
 
-			float rad = light.Range; // This sphere model has a radius of 0.5, so double the scale
+				// Check if the light has reached the target position
+				if (count >= 1.0f) {
+					forwardDest = true; // Reverse direction
+					light.Position.x = targetPositions[i-3].x; // Snap to target to avoid overshooting
+				}
+			}
+			else {
+				// Move back towards the original position
+				count = max(count - 0.00001f, 0.0f); // Decrement count, clamped to 0.0
+				lights[i].Position.x = Lerp(targetPositions[i-3].x, originalPositions[i-3].x, count);
+
+				// Check if the light has reached the original position
+				if (count <= 0.0f) {
+					forwardDest = false; // Reverse direction again
+					light.Position.x = originalPositions[i-3].x; // Snap to start to avoid undershooting
+					count = 0.0f; // Reset count for the next forward movement
+				}
+			}
+
+			// Debug output
+			printf("====================  %f     ===========================\n", light.Position.x);
+
+			float rad = light.Range * 2; // This sphere model has a radius of 0.5, so double the scale
 			XMFLOAT4X4 world;
 			XMMATRIX trans = XMMatrixTranslationFromVector(XMLoadFloat3(&light.Position));
 			XMMATRIX sc = XMMatrixScaling(rad, rad, rad);
@@ -1180,8 +1228,6 @@ void Game::RenderLighting()
 
 			commandList->SetGraphicsRootDescriptorTable(4, gBufferSRVs[0]);
 
-			//std::shared_ptr<Mesh> sphere = std::make_shared<Mesh>(FixPath(L"../../Assets/Models/sphere.obj").c_str());
-
 			// Set buffers in the input assembler
 			UINT stride = sizeof(Vertex);
 			UINT offset = 0;
@@ -1198,10 +1244,14 @@ void Game::RenderLighting()
 			//commandList->DrawInstanced(3, 1, 0, 0);
 		}
 	}
+	j = 0;
 }
 
 
-
+float Game::Lerp(float a, float b, float f)
+{
+	return (a + f * (b - a));
+}
 
 
 //	Pixel shader data and cbuffer setup
