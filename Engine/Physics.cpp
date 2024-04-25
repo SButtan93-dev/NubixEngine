@@ -21,12 +21,14 @@ Physics::~Physics()
 	transport->release();
 	phyAllocator = nullptr;
 	foundation->release();
+	framework->release();
 }
 
 
 Physics::Physics()
 {
 	phyAllocator = new physx::PxDefaultAllocator;
+	auto framework = NvBlastTkFrameworkGet();
 }
 
 
@@ -52,6 +54,10 @@ void Physics::InitPhysics()
 		return;
 	}
 
+	//auto framework = NvBlastTkFrameworkCreate();
+	framework = NvBlastTkFrameworkCreate();
+
+
 	CreateScene();
 
 	CreateRigidBodyDynamic();
@@ -65,14 +71,16 @@ void Physics::InitPhysics()
 
 	AddActors();
 
+	
+
 }
 
 void Physics::CreateScene()
 {
 	physx::PxSceneDesc sceneDesc(physics->getTolerancesScale());
 	sceneDesc.gravity = physx::PxVec3(0.0f, -9.5f, 0.0f);
-	sceneDesc.cpuDispatcher = physx::PxDefaultCpuDispatcherCreate(2); // Set a CPU dispatcher
-	sceneDesc.filterShader = physx::PxDefaultSimulationFilterShader; // Set the collision filter shader
+	sceneDesc.cpuDispatcher = physx::PxDefaultCpuDispatcherCreate(2); // CPU dispatcher
+	sceneDesc.filterShader = physx::PxDefaultSimulationFilterShader; // collision filter shader
 
 	if (!sceneDesc.isValid()) {
 		std::cerr << "Error creating PhysX SDK." << std::endl;
@@ -87,6 +95,8 @@ void Physics::CreateScene()
 		pvdClient->setScenePvdFlag(physx::PxPvdSceneFlag::eTRANSMIT_CONTACTS, true);
 		pvdClient->setScenePvdFlag(physx::PxPvdSceneFlag::eTRANSMIT_SCENEQUERIES, true);
 	}
+
+	
 }
 
 void Physics::AddActors()

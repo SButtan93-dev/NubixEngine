@@ -270,7 +270,7 @@ HRESULT DXCore::InitDirect3D()
 	{
 		// Create a description of how our swap chain should work
 		DXGI_SWAP_CHAIN_DESC swapDesc = {};
-		swapDesc.BufferCount = numBackBuffers;
+		swapDesc.BufferCount = 2; //numBackBuffers;
 		swapDesc.BufferDesc.Width = windowWidth;
 		swapDesc.BufferDesc.Height = windowHeight;
 		swapDesc.BufferDesc.RefreshRate.Numerator = 60;
@@ -294,17 +294,17 @@ HRESULT DXCore::InitDirect3D()
 
 	// Create back buffers
 	{
-		// What is the increment size between RTV descriptors in a
-		// descriptor heap?  This differs per GPU so we need to 
-		// get it at applications start up
+	//	// What is the increment size between RTV descriptors in a
+	//	// descriptor heap?  This differs per GPU so we need to 
+	//	// get it at applications start up
 		rtvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
 		// First create a descriptor heap for RTVs
 		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-		rtvHeapDesc.NumDescriptors = numBackBuffers;
+		rtvHeapDesc.NumDescriptors = 7;
 		rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 		device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(rtvHeap.GetAddressOf()));
-
+		
 		// Now create the RTV handles for each buffer (buffers were created by the swap chain)
 		for (unsigned int i = 0; i < numBackBuffers; i++)
 		{
@@ -408,6 +408,114 @@ HRESULT DXCore::InitDirect3D()
 }
 
 
+Microsoft::WRL::ComPtr<ID3D12Resource> DXCore::CreateGBufferTexture(ID3D12Device* device, UINT width, UINT height, DXGI_FORMAT format, UINT offset)
+{
+	//Microsoft::WRL::ComPtr<ID3D12Resource> gBufferTexture1;
+
+	// Describe the G-buffer texture
+	D3D12_RESOURCE_DESC resourceDesc = {};
+	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	resourceDesc.Alignment = 0;
+	resourceDesc.Width = width;
+	resourceDesc.Height = height;
+	resourceDesc.DepthOrArraySize = 1;
+	resourceDesc.MipLevels = 1;
+	resourceDesc.Format = format;
+	resourceDesc.SampleDesc.Count = 1;
+	resourceDesc.SampleDesc.Quality = 0;
+	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+	D3D12_HEAP_PROPERTIES heapProperties = {};
+	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT; // Use DEFAULT type for render target textures
+	heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	heapProperties.CreationNodeMask = 1;
+	heapProperties.VisibleNodeMask = 1;
+
+	// Specify the clear value
+	D3D12_CLEAR_VALUE clearValue = {};
+	clearValue.Format = format; // Same format as the resource
+	clearValue.Color[0] = 0.0f; // Red component
+	clearValue.Color[1] = 0.0f; // Green component
+	clearValue.Color[2] = 0.0f; // Blue component
+	clearValue.Color[3] = 1.0f; // Alpha component
+
+	// Create the G-buffer texture
+	if (SUCCEEDED(device->CreateCommittedResource(
+		&heapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&resourceDesc,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+		&clearValue,
+		IID_PPV_ARGS(GBuffers[offset-2].GetAddressOf()))))
+	{
+		// Easier debugging
+		GBuffers[offset-2]->SetName(L"GBufferTextureRTV");
+
+		rtvHandles[offset] = rtvHeap->GetCPUDescriptorHandleForHeapStart();
+		rtvHandles[offset].ptr += (offset) * rtvDescriptorSize; // Move the handle to the current descriptor
+
+		device->CreateRenderTargetView(GBuffers[offset-2].Get(), nullptr, rtvHandles[offset]);
+
+		return GBuffers[offset-2];
+	}
+}
+
+Microsoft::WRL::ComPtr<ID3D12Resource> DXCore::CreateLightingTexture(ID3D12Device* device, UINT width, UINT height, DXGI_FORMAT format, UINT offset)
+{
+	//Microsoft::WRL::ComPtr<ID3D12Resource> gBufferTexture1;
+
+	// Describe the G-buffer texture
+	D3D12_RESOURCE_DESC resourceDesc = {};
+	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	resourceDesc.Alignment = 0;
+	resourceDesc.Width = width;
+	resourceDesc.Height = height;
+	resourceDesc.DepthOrArraySize = 1;
+	resourceDesc.MipLevels = 1;
+	resourceDesc.Format = format;
+	resourceDesc.SampleDesc.Count = 1;
+	resourceDesc.SampleDesc.Quality = 0;
+	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+	D3D12_HEAP_PROPERTIES heapProperties = {};
+	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT; // Use DEFAULT type for render target textures
+	heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	heapProperties.CreationNodeMask = 1;
+	heapProperties.VisibleNodeMask = 1;
+
+	// Specify the clear value
+	D3D12_CLEAR_VALUE clearValue = {};
+	clearValue.Format = format; // Same format as the resource
+	clearValue.Color[0] = 0.0f; // Red component
+	clearValue.Color[1] = 0.0f; // Green component
+	clearValue.Color[2] = 0.0f; // Blue component
+	clearValue.Color[3] = 1.0f; // Alpha component
+
+	// Create the G-buffer texture
+	if (SUCCEEDED(device->CreateCommittedResource(
+		&heapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&resourceDesc,
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		&clearValue,
+		IID_PPV_ARGS(lightBuffer.GetAddressOf()))))
+	{
+		// Easier debugging
+		lightBuffer->SetName(L"LightingTextureRTV");
+
+		rtvHandles[offset] = rtvHeap->GetCPUDescriptorHandleForHeapStart();
+		rtvHandles[offset].ptr += (offset)*rtvDescriptorSize; // Move the handle to the current descriptor
+
+		device->CreateRenderTargetView(lightBuffer.Get(), nullptr, rtvHandles[offset]);
+
+		return lightBuffer;
+	}
+}
+
 // --------------------------------------------------------
 // When the window is resized, the underlying 
 // buffers (textures) must also be resized to match.
@@ -454,6 +562,7 @@ void DXCore::OnResize()
 
 	// Reset back to the first back buffer
 	currentSwapBuffer = 0;
+	currentGBufferCount = 0;
 
 	// Reset the depth buffer and create it again
 	{

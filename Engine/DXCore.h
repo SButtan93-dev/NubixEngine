@@ -4,6 +4,7 @@
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <string>
+#include <vector>
 #include <wrl/client.h> // Used for ComPtr - a smart pointer for COM objects
 
 // We can include the correct library files here
@@ -38,6 +39,8 @@ public:
 	// Initialization and game-loop related methods
 	HRESULT InitWindow();
 	HRESULT InitDirect3D();
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateGBufferTexture(ID3D12Device* device, UINT width, UINT height, DXGI_FORMAT format, UINT offset);
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateLightingTexture(ID3D12Device* device, UINT width, UINT height, DXGI_FORMAT format, UINT offset);
 	HRESULT Run();
 	void Quit();
 	virtual void OnResize();
@@ -46,6 +49,7 @@ public:
 	virtual void Init() = 0;
 	virtual void Update(float deltaTime, float totalTime) = 0;
 	virtual void Draw(float deltaTime, float totalTime) = 0;
+	float deltaTime;
 
 protected:
 	HINSTANCE		hInstance;		// The handle to the application
@@ -69,7 +73,9 @@ protected:
 
 	// Swap chain buffer tracking
 	static const unsigned int numBackBuffers = 2;
-	unsigned int currentSwapBuffer;
+	unsigned int currentSwapBuffer = 0;
+
+	unsigned int currentGBufferCount = 0;
 
 	// DirectX related objects and variables
 	D3D_FEATURE_LEVEL		dxFeatureLevel;
@@ -84,11 +90,23 @@ protected:
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvHeap;
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvHeap;
 
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[numBackBuffers]; // Pointers into the RTV desc heap
+	Microsoft::WRL::ComPtr<ID3D12Resource> gBufferRTVs[4];
+	D3D12_GPU_DESCRIPTOR_HANDLE gBufferSRVs[4];
+	Microsoft::WRL::ComPtr<ID3D12Resource> lightBufferRTV;
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[7]; // Pointers into the RTV desc heap
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle;
 
+	std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> srvHandleCPU;
+	std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> srvHandleGPU;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> gBufferTexture[4];
+
 	Microsoft::WRL::ComPtr<ID3D12Resource> backBuffers[numBackBuffers];
+	Microsoft::WRL::ComPtr<ID3D12Resource> GBuffers[4];
 	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilBuffer;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> lightBuffer;
 
 	D3D12_VIEWPORT			viewport;
 	D3D12_RECT				scissorRect;
@@ -101,7 +119,8 @@ private:
 	// Timing related data
 	double perfCounterSeconds;
 	float totalTime;
-	float deltaTime;
+	
+
 	__int64 startTime;
 	__int64 currentTime;
 	__int64 previousTime;

@@ -39,6 +39,8 @@ public:
 	void UpdateViewMatrix();
 	void UpdateProjectionMatrix(float aspectRatio);
 
+	DirectX::XMFLOAT4X4 GetInverseViewProjectionMatrix();
+
 	// Getters
 	DirectX::XMFLOAT4X4 GetView();
 	DirectX::XMFLOAT4X4 GetProjection();
