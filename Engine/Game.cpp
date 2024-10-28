@@ -90,7 +90,7 @@ void Game::Init()
 	GenerateLights();
 
 	camera = std::make_shared<Camera>(
-		XMFLOAT3(0.0f, 0.0f, -35.0f),	// Position
+		XMFLOAT3(-5.0f, 5.0f, -45.0f),	// Position
 		5.0f,							// Move speed
 		0.002f,							// Look speed
 		XM_PIDIV4,						// Field of view
@@ -658,15 +658,15 @@ void Game::CreateBasicGeometry()
 	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneRoughness = LoadTexture(L"../../Assets/Textures/cobblestone_roughness.png");
 	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneMetal = LoadTexture(L"../../Assets/Textures/cobblestone_metal.png");
 
-	D3D12_CPU_DESCRIPTOR_HANDLE bronzeAlbedo = LoadTexture(L"../../Assets/Textures/bronze_albedo.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE bronzeNormals = LoadTexture(L"../../Assets/Textures/bronze_normals.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE bronzeRoughness = LoadTexture(L"../../Assets/Textures/bronze_roughness.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE bronzeMetal = LoadTexture(L"../../Assets/Textures/bronze_metal.png");
+	D3D12_CPU_DESCRIPTOR_HANDLE bronzeAlbedo = LoadTexture(L"../../Assets/Textures/Sponza/Sponza_Curtain_Red_diffuse.png");
+	D3D12_CPU_DESCRIPTOR_HANDLE bronzeNormals = LoadTexture(L"../../Assets/Textures/Sponza/Sponza_Curtain_normal.png");
+	D3D12_CPU_DESCRIPTOR_HANDLE bronzeRoughness = LoadTexture(L"../../Assets/Textures/Sponza/Sponza_Curtain_roughness.png");
+	D3D12_CPU_DESCRIPTOR_HANDLE bronzeMetal = LoadTexture(L"../../Assets/Textures/Sponza/ChainTexture_Metallic.png");
 
-	D3D12_CPU_DESCRIPTOR_HANDLE scratchedAlbedo = LoadTexture(L"../../Assets/Textures/scratched_albedo.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE scratchedNormals = LoadTexture(L"../../Assets/Textures/scratched_normals.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE scratchedRoughness = LoadTexture(L"../../Assets/Textures/scratched_roughness.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE scratchedMetal = LoadTexture(L"../../Assets/Textures/scratched_metal.png");
+	D3D12_CPU_DESCRIPTOR_HANDLE scratchedAlbedo = LoadTexture(L"../../Assets/Textures/Sponza/VasePlant_diffuse.png");
+	D3D12_CPU_DESCRIPTOR_HANDLE scratchedNormals = LoadTexture(L"../../Assets/Textures/Sponza/VasePlant_normal.png");
+	D3D12_CPU_DESCRIPTOR_HANDLE scratchedRoughness = LoadTexture(L"../../Assets/Textures/Sponza/VasePlant_roughness.png");
+	D3D12_CPU_DESCRIPTOR_HANDLE scratchedMetal = LoadTexture(L"../../Assets/Textures/Sponza/Dielectric_metallic.png");
 
 	// During initialization
 	gBufferRTVs[0] = CreateGBufferTexture(device.Get(), windowWidth, windowHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 2);
@@ -684,21 +684,21 @@ void Game::CreateBasicGeometry()
 	// Create materials
 	// Note: Samplers are handled by a single static sampler in the
 	// root signature for this demo, rather than per-material
-	std::shared_ptr<Material> cobbleMat = std::make_shared<Material>(pipelineStateGBuffer, XMFLOAT3(1, 1, 1));
+	cobbleMat = std::make_shared<Material>(pipelineStateGBuffer, XMFLOAT3(1, 1, 1));
 	cobbleMat->AddTexture(cobblestoneAlbedo, 0);
 	cobbleMat->AddTexture(cobblestoneNormals, 1);
 	cobbleMat->AddTexture(cobblestoneRoughness, 2);
 	cobbleMat->AddTexture(cobblestoneMetal, 3);
 	cobbleMat->FinalizeTextures();
 
-	std::shared_ptr<Material> bronzeMat = std::make_shared<Material>(pipelineStateGBuffer, XMFLOAT3(1, 1, 1));
+	bronzeMat = std::make_shared<Material>(pipelineStateGBuffer, XMFLOAT3(1, 1, 1));
 	bronzeMat->AddTexture(bronzeAlbedo, 0);
 	bronzeMat->AddTexture(bronzeNormals, 1);
 	bronzeMat->AddTexture(bronzeRoughness, 2);
 	bronzeMat->AddTexture(bronzeMetal, 3);
 	bronzeMat->FinalizeTextures();
 
-	std::shared_ptr<Material> scratchedMat = std::make_shared<Material>(pipelineStateGBuffer, XMFLOAT3(1, 1, 1));
+	scratchedMat = std::make_shared<Material>(pipelineStateGBuffer, XMFLOAT3(1, 1, 1));
 	scratchedMat->AddTexture(scratchedAlbedo, 0);
 	scratchedMat->AddTexture(scratchedNormals, 1);
 	scratchedMat->AddTexture(scratchedRoughness, 2);
@@ -707,40 +707,25 @@ void Game::CreateBasicGeometry()
 
 	// Load meshes
 	std::shared_ptr<Mesh> floor		= std::make_shared<Mesh>(FixPath(L"../../Assets/Models/Sponza/Floor.obj").c_str());
-	std::shared_ptr<Mesh> sphere	= std::make_shared<Mesh>(FixPath(L"../../Assets/Models/sphere.obj").c_str());
+	std::shared_ptr<Mesh> sphere	= std::make_shared<Mesh>(FixPath(L"../../Assets/Models/sphereScaled.obj").c_str());
 	std::shared_ptr<Mesh> sphere2 = std::make_shared<Mesh>(FixPath(L"../../Assets/Models/sphere.obj").c_str());
 	std::shared_ptr<Mesh> helix		= std::make_shared<Mesh>(FixPath(L"../../Assets/Models/helix.obj").c_str());
 	std::shared_ptr<Mesh> torus		= std::make_shared<Mesh>(FixPath(L"../../Assets/Models/torus.obj").c_str());
 	std::shared_ptr<Mesh> cylinder	= std::make_shared<Mesh>(FixPath(L"../../Assets/Models/cylinder.obj").c_str());
 
 	//// Create entities
-	std::shared_ptr<GameEntity> entityPlane = std::make_shared<GameEntity>(floor, scratchedMat);
-	entityPlane->GetTransform()->SetPosition(0.0f, 0.0f, -5.0f);
+	std::shared_ptr<GameEntity> entityPlane = std::make_shared<GameEntity>(floor, bronzeMat);
+	entityPlane->GetTransform()->SetPosition(0.0f, 0.0f, -100.0f);
 
-	//std::shared_ptr<GameEntity> entityHelix = std::make_shared<GameEntity>(helix, cobbleMat);
-	//entityHelix->GetTransform()->SetPosition(0, 0, 0);
-
-	std::shared_ptr<GameEntity> entitySphere = std::make_shared<GameEntity>(sphere, bronzeMat);
+	std::shared_ptr<GameEntity> entitySphere = std::make_shared<GameEntity>(sphere, cobbleMat);
 	entitySphere->GetTransform()->SetPosition(0.0f, 0.0f, 100.0f);
 
-	std::shared_ptr<GameEntity> entitySphere2 = std::make_shared<GameEntity>(sphere, bronzeMat);
-	entitySphere->GetTransform()->SetPosition(0.0f, 10.0f, 100.0f);
-
 	sphere3 = std::make_shared<Mesh>(FixPath(L"../../Assets/Models/sphere.obj").c_str());
-	//Mesh abc = Mesh(FixPath(L"../../Assets/Models/sphere.obj").c_str());
-	//GameEntity* abc2 = new GameEntity(abc, scratchedMat);
-	//abc2->GetTransform()->SetScale(0.1f, 0.1f, 0.1f);
-	
-	//std::shared_ptr<GameEntity> entitySphere2 = std::make_shared<GameEntity>(sphere2, bronzeMat);
-	//entitySphere2->GetTransform()->SetPosition(3, 0, 0);
-	
-	// Add to list
-	entities.push_back(entityPlane);
-	//entities.push_back(entityHelix);
-	entities.push_back(entitySphere);
 
-	entities.push_back(entitySphere2);
-	//entities.push_back(entitySphere2);
+	// Add to list
+	staticEntities.push_back(entityPlane);
+
+	physics->AddMeshToBlast(entitySphere);
 
 	targets[0] = rtvHandles[2];
 	targets[1] = rtvHandles[3];
@@ -765,13 +750,13 @@ void Game::GenerateLights()
 
 	Light dir2 = {};
 	dir2.Type = LIGHT_TYPE_DIRECTIONAL;
-	dir2.Direction = XMFLOAT3(-1, -0.25f, 0);
+	dir2.Direction = XMFLOAT3(-1, -1.0f, 0);
 	dir2.Color = XMFLOAT3(0.2f, 0.2f, 0.2f);
 	dir2.Intensity = 1.0f;
 
 	Light dir3 = {};
 	dir3.Type = LIGHT_TYPE_DIRECTIONAL;
-	dir3.Direction = XMFLOAT3(0, -1, 1);
+	dir3.Direction = XMFLOAT3(1, -1, 1);
 	dir3.Color = XMFLOAT3(0.2f, 0.2f, 0.2f);
 	dir3.Intensity = 1.0f;
 
@@ -785,14 +770,14 @@ void Game::GenerateLights()
 	{
 		Light point = {};
 		point.Type = LIGHT_TYPE_POINT;
-		point.Position = XMFLOAT3(RandomRange(-50.0f, 50.0f), 2.0f, RandomRange(-5.0f, 10.0f));
+		point.Position = XMFLOAT3(RandomRange(-15.0f, 15.0f), 30.0f, RandomRange(-3.0f, 5.0f));
 		point.Color = XMFLOAT3(RandomRange(0, 1), RandomRange(0, 1), RandomRange(0, 1));
 		point.Range = 50.0f;
 		point.Intensity = 0.1f;// RandomRange(0.1f, 3.0f);
 		//point.Direction = XMFLOAT3(1, 1, 1);
 		originalPositions.push_back(point.Position);
 
-		targetPositions.push_back(XMFLOAT3(RandomRange(-50.0, 50.0f), 5.0f, RandomRange(-5.0f, 10.0f)));
+		targetPositions.push_back(XMFLOAT3(RandomRange(-5.0, 5.0f), 5.0f, RandomRange(-5.0f, 5.0f)));
 		// Add to the list
 		lights.push_back(point);
 	}
@@ -830,22 +815,17 @@ void Game::Update(float deltaTime, float totalTime)
 		Quit();
 	}
 
+
 	if (GetAsyncKeyState('E') & 0x8000)
 	{
-		physics->AddImpulse();
+		physics->ToggleGravity(true);
 	}
 
+
+	dynamicEntities = physics->GetDynamicFracturedEntities();
 
 	physics->DoSimulation(deltaTime);
 	
-
-
-	// Rotate entities
-	for (auto& e : entities)
-	{   //deltaTIme * 0.5f;
-		e->GetTransform()->Rotate(0, 0, 0);	
-	}
-
 	// Update other objects
 	camera->Update(deltaTime);
 }
@@ -855,10 +835,10 @@ void Game::Update(float deltaTime, float totalTime)
 // --------------------------------------------------------
 void Game::Draw(float deltaTime, float totalTime)
 {
+	physics->FetchSimulationResults();
+
 	// Grab the helper
 	DX12Helper& dx12Helper = DX12Helper::GetInstance();
-
-	//currentSwapBuffer = swapChain->GetCurrentBackBufferIndex();
 
 	// Clearing the render target
 	{
@@ -895,13 +875,6 @@ void Game::Draw(float deltaTime, float totalTime)
 				0, 0); // No scissor rectangles
 		}
 
-		//float color2[] = { 0, 0, 0, 1.0f };
-
-		//commandList->ClearRenderTargetView(
-		//	rtvHandles[currentSwapBuffer],
-		//	color2,
-		//	0, 0); // No scissor rectangles
-
 		// Clear the depth buffer, too
 		commandList->ClearDepthStencilView(
 			dsvHandle,
@@ -927,33 +900,6 @@ void Game::Draw(float deltaTime, float totalTime)
 		commandList->RSSetViewports(1, &viewport);
 		commandList->RSSetScissorRects(1, &scissorRect);
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-		physics->FetchSimulationResults();
-
-		const int limit = 2;
-
-		// + 1 is for spheres
-		for (int index = 0; index < limit; index++)
-		{
-			physx::PxTransform dynamicColliderPos = physics->GetSphereColliderPosition(index);
-
-			physx::PxTransform entityPos = physx::PxTransform(entities[index + 1]->GetTransform()->GetPosition().x,
-														entities[index+1]->GetTransform()->GetPosition().y, 
-														entities[index + 1]->GetTransform()->GetPosition().z);
-
-			physx::PxVec3 relativeTransform = physx::PxVec3(dynamicColliderPos.p.x, dynamicColliderPos.p.y, dynamicColliderPos.p.z)
-											- physx::PxVec3(entityPos.p.x, entityPos.p.y, entityPos.p.z);
-
-			entities[index + 1]->GetTransform()->SetPosition(entities[index + 1]->GetTransform()->GetPosition().x + relativeTransform.x,
-															entities[index + 1]->GetTransform()->GetPosition().y + relativeTransform.y,
-															entities[index + 1]->GetTransform()->GetPosition().z + relativeTransform.z);
-
-			DirectX::XMFLOAT3 conv2 = physics->GetSphereColliderRotation(index);
-
-			entities[index + 1]->GetTransform()->SetRotation(conv2.x, conv2.z, conv2.y);
-		}
-
-		int count = 0;
 
 		RenderGBuffer();
 
@@ -1041,7 +987,69 @@ void Game::RenderGBuffer()
 {
 	// Loop through the meshes
 	{
-		for (auto& e : entities)
+		
+
+		for (auto& e : dynamicEntities)
+		{
+			e.get()->SetMaterial(bronzeMat);
+			// Grab the material for this entity
+			std::shared_ptr<Material> mat = scratchedMat;
+
+			// Set the pipeline state for this material
+			commandList->SetPipelineState(mat->GetPipelineState().Get());
+
+			// Set up the vertex shader data we intend to use for drawing this entity
+			{
+				VertexShaderExternalData vsData = {};
+				vsData.world = e->GetTransform()->GetWorldMatrix();
+				vsData.worldInverseTranspose = e->GetTransform()->GetWorldInverseTransposeMatrix();
+				vsData.view = camera->GetView();
+				vsData.projection = camera->GetProjection();
+
+				// Send this to a chunk of the constant buffer heap
+				// and grab the GPU handle for it so we can set it for this draw
+				D3D12_GPU_DESCRIPTOR_HANDLE cbHandleVS = DX12Helper::GetInstance().FillNextConstantBufferAndGetGPUDescriptorHandle(
+					(void*)(&vsData), sizeof(VertexShaderExternalData));
+
+				// Set this constant buffer handle
+				// Note: This assumes that descriptor table 0 is the
+				//       place to put this particular descriptor.  This
+				//       is based on how we set up our root signature.
+				commandList->SetGraphicsRootDescriptorTable(0, cbHandleVS);
+			}
+
+			GBufferPixelShaderExternalData psData = {};
+			psData.color = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f);
+
+			D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = DX12Helper::GetInstance().FillNextConstantBufferAndGetGPUDescriptorHandle(
+				(void*)(&psData), sizeof(GBufferPixelShaderExternalData));
+
+			//// Set this constant buffer handle
+			//// Note: This assumes that descriptor table 1 is the
+			////       place to put this particular descriptor.  This
+			////       is based on how we set up our root signature.
+			commandList->SetGraphicsRootDescriptorTable(1, cbHandlePS);
+
+			// Set the G-buffer textures as shader resources
+			// Set the SRV descriptor handle for this material's textures
+			// Note: This assumes that descriptor table 2 is for textures (as per our root sig)
+			commandList->SetGraphicsRootDescriptorTable(2, mat->GetFinalGPUHandleForTextures());
+
+			// Grab the mesh and its buffer views
+			std::shared_ptr<Mesh> mesh = e->GetMesh();
+			D3D12_VERTEX_BUFFER_VIEW vbv = mesh->GetVB();
+			D3D12_INDEX_BUFFER_VIEW  ibv = mesh->GetIB();
+
+			// Set the geometry
+			commandList->IASetVertexBuffers(0, 1, &vbv);
+			commandList->IASetIndexBuffer(&ibv);
+
+			// Draw
+			commandList->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
+
+		}
+
+		for (auto& e : staticEntities)
 		{
 			// Grab the material for this entity
 			std::shared_ptr<Material> mat = e->GetMaterial();
@@ -1193,7 +1201,7 @@ void Game::RenderLighting()
 			}
 
 			// Debug output
-			printf("====================  %f     ===========================\n", light.Position.x);
+			//printf("====================  %f     ===========================\n", light.Position.x);
 
 			float rad = light.Range * 2; // This sphere model has a radius of 0.5, so double the scale
 			XMFLOAT4X4 world;

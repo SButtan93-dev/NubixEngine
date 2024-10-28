@@ -2,9 +2,15 @@
 
 #include <d3d12.h>
 #include <wrl/client.h>
-
+#include <DirectXMath.h>
 #include "Vertex.h"
+#include "DX12Helper.h"
 
+
+#include <vector>
+#include <fstream>
+
+using namespace DirectX;
 
 class Mesh
 {
@@ -15,6 +21,13 @@ public:
 	D3D12_VERTEX_BUFFER_VIEW GetVB() { return vbView; }
 	D3D12_INDEX_BUFFER_VIEW GetIB() { return ibView; }
 	int GetIndexCount() { return numIndices; }
+
+	std::vector<XMFLOAT3> positions;     // Positions from the file
+	std::vector<XMFLOAT3> normals;       // Normals from the file
+	std::vector<XMFLOAT2> uvs;           // UVs from the file
+	std::vector<Vertex> verts;           // Verts we're assembling
+	std::vector<UINT> indices;           // Indices of these verts
+	unsigned int vertCounter = 0;        // Count of vertices/indices
 
 private:
 	int numIndices; 

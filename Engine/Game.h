@@ -57,16 +57,24 @@ private:
 	D3D12_CPU_DESCRIPTOR_HANDLE targets[4];
 	D3D12_CPU_DESCRIPTOR_HANDLE lightTarget;
 
+	std::shared_ptr<Material> bronzeMat;
+	std::shared_ptr<Material> scratchedMat;
+	std::shared_ptr<Material> cobbleMat;
+
 	std::shared_ptr<Mesh> sphere3;
 
 	// Scene
 	int lightCount;
 	std::vector<Light> lights;
 	std::shared_ptr<Camera> camera;
-	std::vector<std::shared_ptr<GameEntity>> entities;
+	//std::vector<std::shared_ptr<GameEntity>> staticEntities;
+	//std::vector<std::shared_ptr<GameEntity>> dynamicEntities;
 
 	std::vector<DirectX::XMFLOAT3> targetPositions;
 	std::vector<DirectX::XMFLOAT3> originalPositions;
+
+	std::vector<std::shared_ptr<GameEntity>> staticEntities;
+	std::vector<std::shared_ptr<GameEntity>> dynamicEntities;
 
 	float count = 0.0f;
 

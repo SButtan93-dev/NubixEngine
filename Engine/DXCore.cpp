@@ -679,10 +679,10 @@ HRESULT DXCore::Run()
 
 			// Update the input manager
 			Input::GetInstance().Update();
-
+			const float fixedDeltaTime = 1.0f / 30.0f;
 			// The game loop
-			Update(deltaTime, totalTime);
-			Draw(deltaTime, totalTime);
+			Update(fixedDeltaTime, totalTime);
+			Draw(fixedDeltaTime, totalTime);
 
 			// Frame is over, notify the input manager
 			Input::GetInstance().EndOfFrame();
@@ -719,7 +719,7 @@ void DXCore::UpdateTimer()
 	// Calculate delta time and clamp to zero
 	//  - Could go negative if CPU goes into power save mode 
 	//    or the process itself gets moved to another core
-	deltaTime = max((float)((currentTime - previousTime) * perfCounterSeconds), 0.0f);
+	deltaTime = 1.0f / 60.0f;
 
 	// Calculate the total time from start to now
 	totalTime = (float)((currentTime - startTime) * perfCounterSeconds);

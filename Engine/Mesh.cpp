@@ -1,9 +1,5 @@
 #include "Mesh.h"
-#include "DX12Helper.h"
 
-#include <DirectXMath.h>
-#include <vector>
-#include <fstream>
 
 
 using namespace DirectX;
@@ -27,12 +23,7 @@ Mesh::Mesh(const wchar_t* objFile)
 	if (!obj.is_open())	return;
 
 	// Variables used while reading the file
-	std::vector<XMFLOAT3> positions;     // Positions from the file
-	std::vector<XMFLOAT3> normals;       // Normals from the file
-	std::vector<XMFLOAT2> uvs;           // UVs from the file
-	std::vector<Vertex> verts;           // Verts we're assembling
-	std::vector<UINT> indices;           // Indices of these verts
-	unsigned int vertCounter = 0;        // Count of vertices/indices
+
 	char chars[100];                     // String for line reading
 
 	// Still have data left?
